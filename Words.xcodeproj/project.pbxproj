@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		45C6C4562E31D1610058C881 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 45C6C4552E31D1610058C881 /* FirebaseAuth */; };
+		45C6C4582E31D16A0058C881 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 45C6C4572E31D16A0058C881 /* FirebaseFirestore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		45C6C4192E31C9250058C881 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +57,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				45C6C4562E31D1610058C881 /* FirebaseAuth in Frameworks */,
+				45C6C4582E31D16A0058C881 /* FirebaseFirestore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +85,7 @@
 				45C6C40C2E31C9240058C881 /* Words */,
 				45C6C41B2E31C9250058C881 /* WordsTests */,
 				45C6C4252E31C9250058C881 /* WordsUITests */,
+				45C6C4542E31D1610058C881 /* Frameworks */,
 				45C6C40B2E31C9240058C881 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +98,13 @@
 				45C6C4222E31C9250058C881 /* WordsUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		45C6C4542E31D1610058C881 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +127,8 @@
 			);
 			name = Words;
 			packageProductDependencies = (
+				45C6C4552E31D1610058C881 /* FirebaseAuth */,
+				45C6C4572E31D16A0058C881 /* FirebaseFirestore */,
 			);
 			productName = Words;
 			productReference = 45C6C40A2E31C9240058C881 /* Words.app */;
@@ -195,6 +212,9 @@
 			);
 			mainGroup = 45C6C4012E31C9230058C881;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				45C6C4372E31CADB0058C881 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 45C6C40B2E31C9240058C881 /* Products */;
 			projectDirPath = "";
@@ -412,10 +432,11 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
 			name = Debug;
@@ -449,10 +470,11 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
 			name = Release;
@@ -583,6 +605,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		45C6C4372E31CADB0058C881 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		45C6C4552E31D1610058C881 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 45C6C4372E31CADB0058C881 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		45C6C4572E31D16A0058C881 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 45C6C4372E31CADB0058C881 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 45C6C4022E31C9230058C881 /* Project object */;
 }
