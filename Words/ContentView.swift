@@ -72,7 +72,6 @@ struct HomeView: View {
                         ForEach(dataController.posts) { post in
                             FullScreenPostView(
                                 post: post,
-                                geometry: geometry,
                                 hasAppreciated: appreciatedPosts.contains(post.id ?? "")
                             ) {
                                 if let postId = post.id {
@@ -81,7 +80,7 @@ struct HomeView: View {
                                 selectedPost = post
                                 showingSendAppreciation = true
                             }
-                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
                         }
                     }
                 }
@@ -96,11 +95,9 @@ struct HomeView: View {
         }
     }
 }
-
 // MARK: - Full Screen Post View (Reels-style)
 struct FullScreenPostView: View {
     let post: WordPost
-    let geometry: GeometryProxy
     let hasAppreciated: Bool
     let onAppreciate: () -> Void
     @EnvironmentObject var dataController: DataController
@@ -147,7 +144,8 @@ struct FullScreenPostView: View {
                     
                     Spacer()
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, 60) // Fixed padding to avoid status bar
                 
                 Spacer()
                 
@@ -158,9 +156,8 @@ struct FullScreenPostView: View {
                         .foregroundColor(post.backgroundType.textColor)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 30)
-                        .frame(minHeight: geometry.size.height * 0.5)
                 }
-                .frame(maxHeight: geometry.size.height * 0.6)
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
                 
                 Spacer()
                 
@@ -211,8 +208,8 @@ struct FullScreenPostView: View {
                         .opacity(0.5)
                     }
                 }
-                .padding()
-                .padding(.bottom, 20)
+                .padding(.horizontal)
+                .padding(.bottom, 100) // Fixed padding to account for tab bar
             }
             
             // Swipe indicator (subtle)
@@ -225,12 +222,11 @@ struct FullScreenPostView: View {
                             .frame(width: 20, height: 1)
                     }
                 }
-                .padding(.bottom, 50)
+                .padding(.bottom, 120) // Fixed padding
             }
         }
     }
 }
-
 // MARK: - Loading View
 struct LoadingView: View {
     var body: some View {
