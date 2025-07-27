@@ -15,6 +15,7 @@ class DataController: ObservableObject {
     private let db = Firestore.firestore()
     private var postsListener: ListenerRegistration?
     private var appreciationsListener: ListenerRegistration?
+    private var sentAppreciationsListener: ListenerRegistration?
     private var authStateListener: AuthStateDidChangeListenerHandle?
     
     init() {
@@ -24,6 +25,7 @@ class DataController: ObservableObject {
     deinit {
         postsListener?.remove()
         appreciationsListener?.remove()
+        sentAppreciationsListener?.remove()
         if let authListener = authStateListener {
             Auth.auth().removeStateDidChangeListener(authListener)
         }
@@ -66,6 +68,7 @@ class DataController: ObservableObject {
     private func setupDataListeners() {
         setupPostsListener()
         setupAppreciationsListener()
+        setupSentAppreciationsListener()
     }
     
     private func setupPostsListener() {
@@ -120,6 +123,32 @@ class DataController: ObservableObject {
                     
                     // Update unread count
                     self?.unreadAppreciationCount = self?.myAppreciations.filter { !$0.isRead }.count ?? 0
+                }
+            }
+    }
+    
+    private func setupSentAppreciationsListener() {
+        guard let userId = currentUserId else { return }
+        
+        sentAppreciationsListener = db.collection("appreciations")
+            .whereField("senderId", isEqualTo: userId)
+            .addSnapshotListener { [weak self] snapshot, error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("Error fetching sent appreciations: \(error)")
+                        return
+                    }
+                    
+                    self?.sentAppreciations = snapshot?.documents.compactMap { document in
+                        do {
+                            var appreciation = try document.data(as: AppreciationMessage.self)
+                            appreciation.id = document.documentID
+                            return appreciation
+                        } catch {
+                            print("Error decoding sent appreciation: \(error)")
+                            return nil
+                        }
+                    } ?? []
                 }
             }
     }
@@ -229,6 +258,15 @@ class DataController: ObservableObject {
     func getMyPosts() -> [WordPost] {
         guard let userId = currentUserId else { return [] }
         return posts.filter { $0.authorId == userId }
+    }
+    
+    func hasUserAppreciatedPost(postId: String) -> Bool {
+        guard let userId = currentUserId else { return false }
+        
+        // Check if user has already sent an appreciation for this post
+        return sentAppreciations.contains { appreciation in
+            appreciation.postId == postId && appreciation.senderId == userId
+        }
     }
     
     // MARK: - Error Handling

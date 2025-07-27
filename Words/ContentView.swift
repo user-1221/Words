@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var dataController: DataController
     @State private var selectedTab = 0
+    @State private var showingError = false
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -37,7 +38,10 @@ struct ContentView: View {
                 .badge(dataController.unreadAppreciationCount > 0 ? "\(dataController.unreadAppreciationCount)" : nil)
                 .tag(4)
         }
-        .alert("Error", isPresented: .constant(dataController.errorMessage != nil)) {
+        .onReceive(dataController.$errorMessage) { errorMessage in
+            showingError = errorMessage != nil
+        }
+        .alert("Error", isPresented: $showingError) {
             Button("OK") {
                 dataController.clearError()
             }
@@ -50,8 +54,6 @@ struct ContentView: View {
 }
 
 // MARK: - Home View
-import SwiftUI
-
 struct HomeView: View {
     @EnvironmentObject var dataController: DataController
     @State private var showingSendAppreciation = false
@@ -296,52 +298,6 @@ struct EmptyHomeView: View {
         }
     }
 }
-/*
-struct HomeView: View {
-    @EnvironmentObject var dataController: DataController
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 30) {
-                Spacer()
-              
-                Text("Words")
-                    .font(.system(size: 48, weight: .thin, design: .serif))
-                    .padding(.top, 60)
-                
-                Text("A space for reflection and resonance")
-                    .font(.system(size: 18, weight: .light))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                
-                Spacer()
-                
-                VStack(spacing: 20) {
-                    if dataController.isLoading {
-                        ProgressView("Connecting...")
-                            .font(.system(size: 16, weight: .light))
-                    } else {
-                        Text("Welcome to your sanctuary of words")
-                            .font(.system(size: 16, weight: .light))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                        
-                        if !dataController.posts.isEmpty {
-                            Text("\(dataController.posts.count) words shared")
-                                .font(.system(size: 14, weight: .light))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                
-                Spacer()
-            }
-            .padding()
-            .navigationBarHidden(true)
-        }
-    }
-}
-*/
 
 // MARK: - Full Post View
 struct FullPostView: View {
