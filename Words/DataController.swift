@@ -7,6 +7,7 @@ class DataController: ObservableObject {
     @Published var currentUserId: String?
     @Published var posts: [WordPost] = []
     @Published var myAppreciations: [AppreciationMessage] = []
+    @Published var sentAppreciations: [AppreciationMessage] = []
     @Published var unreadAppreciationCount: Int = 0
     @Published var isLoading = false
     @Published var errorMessage: String?
