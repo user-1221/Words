@@ -13,43 +13,50 @@ struct SearchModeView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // Mood Filter Bar
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 12) {
-                        ForEach(Mood.allCases, id: \.self) { mood in
-                            MoodChip(
-                                mood: mood,
-                                isSelected: selectedMoods.contains(mood)
-                            ) {
-                                if selectedMoods.contains(mood) {
-                                    selectedMoods.remove(mood)
-                                } else {
-                                    selectedMoods.insert(mood)
+            GeometryReader { geo in
+                VStack(spacing: 0) {
+                    // Mood Filter Bar (auto-sized)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 12) {
+                            ForEach(Mood.allCases, id: \.self) { mood in
+                                MoodChip(
+                                    mood: mood,
+                                    isSelected: selectedMoods.contains(mood)
+                                ) {
+                                    if selectedMoods.contains(mood) {
+                                        selectedMoods.remove(mood)
+                                    } else {
+                                        selectedMoods.insert(mood)
+                                    }
                                 }
                             }
                         }
+                        .padding(.horizontal)
+                        .padding(.vertical, 4) // Shrink height
+                        .frame(height: geo.size.height * 0.2)
                     }
-                    .padding(.horizontal)
-                }
-                .padding(.vertical, 12)
-                .background(Color(UIColor.systemGray6))
-                
-                // Posts List
-                if filteredPosts.isEmpty {
-                    EmptySearchView()
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 16) {
-                            ForEach(filteredPosts) { post in
-                                PostCard(post: post) {
-                                    selectedPost = post
-                                    showingFullPost = true
+                    .background(Color(UIColor.systemGray6))
+                    
+                    // Posts List fills the rest
+                    Group {
+                        if filteredPosts.isEmpty {
+                            EmptySearchView()
+                        } else {
+                            ScrollView {
+                                LazyVStack(spacing: 16) {
+                                    ForEach(filteredPosts) { post in
+                                        PostCard(post: post) {
+                                            selectedPost = post
+                                            showingFullPost = true
+                                        }
+                                    }
                                 }
+                                .padding()
+                                .frame(maxHeight: .infinity)
                             }
                         }
-                        .padding()
                     }
+                    .frame(maxHeight: .infinity)
                 }
             }
             .navigationTitle("Search Words")
@@ -60,9 +67,14 @@ struct SearchModeView: View {
                 FullPostView(post: post)
             }
         }
+
+        .sheet(isPresented: $showingFullPost) {
+            if let post = selectedPost {
+                FullPostView(post: post)
+            }
+        }
     }
 }
-
 // MARK: - Mood Chip Component
 struct MoodChip: View {
     let mood: Mood

@@ -16,18 +16,16 @@ struct ScreenModeView: View {
     }
     
     var body: some View {
-        NavigationView {
-            if isActive {
-                activeScreenMode
-            } else {
-                setupScreenMode
-            }
+        if isActive {
+            activeScreenMode
+        } else {
+            setupScreenMode
         }
     }
     
     // MARK: - Setup View
     var setupScreenMode: some View {
-        VStack(spacing: 30) {
+        VStack(spacing: 20) {
             VStack(spacing: 16) {
                 Image(systemName: "tv")
                     .font(.system(size: 60))
@@ -41,78 +39,81 @@ struct ScreenModeView: View {
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
+            .padding(.top, 40)
             
-            VStack(spacing: 20) {
-                // Mood Selection
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Filter by Mood")
-                        .font(.system(size: 18, weight: .medium))
-                    
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                        ForEach(Mood.allCases, id: \.self) { mood in
-                            MoodToggleChip(
-                                mood: mood,
-                                isSelected: selectedMoods.contains(mood)
-                            ) {
-                                if selectedMoods.contains(mood) {
-                                    selectedMoods.remove(mood)
-                                } else {
-                                    selectedMoods.insert(mood)
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Mood Selection
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Filter by Mood")
+                            .font(.system(size: 18, weight: .medium))
+                        
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                            ForEach(Mood.allCases, id: \.self) { mood in
+                                MoodToggleChip(
+                                    mood: mood,
+                                    isSelected: selectedMoods.contains(mood)
+                                ) {
+                                    if selectedMoods.contains(mood) {
+                                        selectedMoods.remove(mood)
+                                    } else {
+                                        selectedMoods.insert(mood)
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                
-                // Scroll Speed
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Scroll Speed")
-                        .font(.system(size: 18, weight: .medium))
                     
-                    HStack {
-                        Text("Slow")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                    // Scroll Speed
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Scroll Speed")
+                            .font(.system(size: 18, weight: .medium))
                         
-                        Slider(value: $scrollSpeed, in: 2...10, step: 1)
-                            .accentColor(.blue)
+                        HStack {
+                            Text("Slow")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                            
+                            Slider(value: $scrollSpeed, in: 2...10, step: 1)
+                                .accentColor(.blue)
+                            
+                            Text("Fast")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
                         
-                        Text("Fast")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Text("\(Int(scrollSpeed)) seconds per word")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                }
-                
-                // Font Size
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Font Size")
-                        .font(.system(size: 18, weight: .medium))
-                    
-                    HStack {
-                        Text("Small")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                        
-                        Slider(value: $fontSize, in: 18...36, step: 2)
-                            .accentColor(.blue)
-                        
-                        Text("Large")
-                            .font(.system(size: 14))
+                        Text("\(Int(scrollSpeed)) seconds per word")
+                            .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
                     
-                    Text("Size: \(Int(fontSize))")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                    // Font Size
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Font Size")
+                            .font(.system(size: 18, weight: .medium))
+                        
+                        HStack {
+                            Text("Small")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                            
+                            Slider(value: $fontSize, in: 18...36, step: 2)
+                                .accentColor(.blue)
+                            
+                            Text("Large")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Text("Size: \(Int(fontSize))")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
                 }
+                .padding()
+                .background(Color(UIColor.systemGray6))
+                .cornerRadius(12)
             }
-            .padding()
-            .background(Color(UIColor.systemGray6))
-            .cornerRadius(12)
             
             Spacer()
             
@@ -126,16 +127,16 @@ struct ScreenModeView: View {
             .foregroundColor(.white)
             .cornerRadius(12)
             .disabled(filteredPosts.isEmpty)
+            .padding(.bottom, 20)
             
             if filteredPosts.isEmpty {
                 Text("No words available with selected filters")
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
+                    .padding(.bottom, 20)
             }
         }
-        .padding()
-        .navigationTitle("Screen Mode")
-        .navigationBarTitleDisplayMode(.large)
+        .padding(.horizontal)
     }
     
     // MARK: - Active Screen Mode

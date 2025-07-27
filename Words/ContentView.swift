@@ -58,7 +58,6 @@ struct HomeView: View {
     @EnvironmentObject var dataController: DataController
     @State private var showingSendAppreciation = false
     @State private var selectedPost: WordPost?
-    @State private var appreciatedPosts: Set<String> = []
     
     var body: some View {
         GeometryReader { geometry in
@@ -72,14 +71,11 @@ struct HomeView: View {
                         ForEach(dataController.posts) { post in
                             FullScreenPostView(
                                 post: post,
-                                hasAppreciated: appreciatedPosts.contains(post.id ?? "")
-                            ) {
-                                if let postId = post.id {
-                                    appreciatedPosts.insert(postId)
+                                onAppreciate: {
+                                    selectedPost = post
+                                    showingSendAppreciation = true
                                 }
-                                selectedPost = post
-                                showingSendAppreciation = true
-                            }
+                            )
                             .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
                         }
                     }
@@ -98,17 +94,11 @@ struct HomeView: View {
 // MARK: - Full Screen Post View (Reels-style)
 struct FullScreenPostView: View {
     let post: WordPost
-    let hasAppreciated: Bool
     let onAppreciate: () -> Void
     @EnvironmentObject var dataController: DataController
     
     // Check if user has already sent appreciation through the database
     var hasUserAppreciated: Bool {
-        if hasAppreciated {
-            return true
-        }
-        
-        // Check if current user has already sent appreciation to this post
         guard let postId = post.id else {
             return false
         }
@@ -122,7 +112,7 @@ struct FullScreenPostView: View {
             post.backgroundType.gradient
                 .ignoresSafeArea()
             
-            // Content
+            // Content - rest remains the same
             VStack {
                 // Top bar with metadata
                 HStack {
