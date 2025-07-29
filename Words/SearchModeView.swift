@@ -1,4 +1,5 @@
 import SwiftUI
+import WaterfallGrid
 
 // MARK: - Search Mode View
 struct SearchModeView: View {
@@ -20,7 +21,6 @@ struct SearchModeView: View {
                     // Top bar with search icon
                     HStack {
                         Spacer()
-                        
                         Button(action: {
                             withAnimation(.spring()) {
                                 showingFilters.toggle()
@@ -35,23 +35,23 @@ struct SearchModeView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
                     
-                    // Posts Grid
+                    // Posts Grid using WaterfallGrid
                     if filteredPosts.isEmpty {
                         EmptySearchView()
                     } else {
                         ScrollView {
-                            LazyVGrid(columns: [
-                                GridItem(.flexible()),
-                                GridItem(.flexible())
-                            ], spacing: 12) {
-                                ForEach(filteredPosts) { post in
-                                    InstagramStyleCard(post: post) {
-                                        selectedPost = post
-                                        showingFullPost = true
-                                    }
+                            WaterfallGrid(filteredPosts) { post in
+                                InstagramStyleCard(post: post) {
+                                    selectedPost = post
+                                    showingFullPost = true
                                 }
                             }
-                            .padding()
+                            .gridStyle(
+                                columns: 2,
+                                spacing: 12,
+                                animation: .none
+                            )
+                            .padding(.horizontal, 12)
                         }
                     }
                 }
@@ -121,7 +121,7 @@ struct InstagramStyleCard: View {
     let post: WordPost
     let onTap: () -> Void
     
-    // Random heights for staggered effect
+    // Staggered heights
     private var cardHeight: CGFloat {
         let baseHeight: CGFloat = 140
         let variations: [CGFloat] = [0, 20, 40, 60, 80, 100]
@@ -129,71 +129,42 @@ struct InstagramStyleCard: View {
         return baseHeight + variations[index]
     }
     
+    // Background shade
+    private var backgroundGray: Color {
+        let shades: [Color] = [
+            Color(white: 0.95),
+            Color(white: 0.85),
+            Color(white: 0.75),
+            Color(white: 0.65),
+            Color(white: 0.55),
+            Color(white: 0.45)
+        ]
+        let idx = abs(post.title.hashValue) % shades.count
+        return shades[idx]
+    }
+    
+    // Contrast text color
+    private var textColor: Color {
+        (backgroundGray == Color(white: 0.45) || backgroundGray == Color(white: 0.55))
+            ? .white
+            : .black
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Main content area with background
-            ZStack(alignment: .bottomLeading) {
-                // 背景を黒に
-                Color.black
-
-                // タイトルを中央に
-                Text(post.title)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .padding(.horizontal)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-
-                // ムードアイコンは左下に
-                HStack(spacing: 6) {
-                    ForEach(post.moods.prefix(2), id: \.self) { mood in
-                        Text(mood.icon)
-                            .font(.system(size: 14))
-                    }
-                }
-                .padding(8)
-            }
-            .frame(height: cardHeight)
-            .cornerRadius(12)
-
-            
-            // Bottom info bar
-            HStack {
-                // Page count if multi-page
-                if post.content.count > 1 {
-                    HStack(spacing: 2) {
-                        Image(systemName: "doc.on.doc")
-                            .font(.system(size: 10))
-                        Text("\(post.content.count)")
-                            .font(.system(size: 11))
-                    }
-                    .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                // Appreciation count
-                if post.appreciationCount > 0 {
-                    HStack(spacing: 2) {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 10))
-                        Text("\(post.appreciationCount)")
-                            .font(.system(size: 11))
-                    }
-                    .foregroundColor(.pink)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+        ZStack {
+            backgroundGray
+            Text(post.title.uppercased())
+                .font(.system(size: 18, weight: .semibold))
+                .multilineTextAlignment(.center)
+                .foregroundColor(textColor)
+                .padding(.horizontal, 8)
         }
-        .background(Color(UIColor.secondarySystemBackground))
+        .frame(height: cardHeight)
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
         .onTapGesture(perform: onTap)
     }
 }
-
 
 // MARK: - Mood Chip
 struct MoodChip: View {
@@ -224,22 +195,19 @@ struct EmptySearchView: View {
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
-            
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 60))
                 .foregroundColor(.gray.opacity(0.3))
-            
             Text("No words found")
                 .font(.system(size: 24, weight: .light))
                 .foregroundColor(.secondary)
-            
             Text("Try adjusting your mood filters\nor wait for new posts")
                 .font(.system(size: 16))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-            
             Spacer()
         }
         .padding()
     }
 }
+
