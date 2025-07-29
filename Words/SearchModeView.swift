@@ -123,8 +123,8 @@ struct InstagramStyleCard: View {
     
     // Random heights for staggered effect
     private var cardHeight: CGFloat {
-        let baseHeight: CGFloat = 180
-        let variations: [CGFloat] = [0, 40, 80, 120]
+        let baseHeight: CGFloat = 140
+        let variations: [CGFloat] = [0, 20, 40, 60, 80, 100]
         let index = abs(post.title.hashValue) % variations.count
         return baseHeight + variations[index]
     }
@@ -133,34 +133,30 @@ struct InstagramStyleCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // Main content area with background
             ZStack(alignment: .bottomLeading) {
-                post.backgroundType.gradient
-                
-                // Gradient overlay for better text readability
-                LinearGradient(
-                    colors: [Color.clear, Color.black.opacity(0.6)],
-                    startPoint: .center,
-                    endPoint: .bottom
-                )
-                
-                // Title prominently displayed
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(post.title)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .lineLimit(2)
-                    
-                    // Mood icons
-                    HStack(spacing: 6) {
-                        ForEach(post.moods.prefix(2), id: \.self) { mood in
-                            Text(mood.icon)
-                                .font(.system(size: 14))
-                        }
+                // 背景を黒に
+                Color.black
+
+                // タイトルを中央に
+                Text(post.title)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .padding(.horizontal)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+
+                // ムードアイコンは左下に
+                HStack(spacing: 6) {
+                    ForEach(post.moods.prefix(2), id: \.self) { mood in
+                        Text(mood.icon)
+                            .font(.system(size: 14))
                     }
                 }
-                .padding()
+                .padding(8)
             }
             .frame(height: cardHeight)
             .cornerRadius(12)
+
             
             // Bottom info bar
             HStack {
@@ -197,6 +193,7 @@ struct InstagramStyleCard: View {
         .onTapGesture(perform: onTap)
     }
 }
+
 
 // MARK: - Mood Chip
 struct MoodChip: View {
