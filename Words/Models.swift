@@ -2,12 +2,11 @@ import Foundation
 import FirebaseFirestore
 import SwiftUI
 
-
 // MARK: - Word Post Model
 struct WordPost: Identifiable, Codable {
     @DocumentID var id: String?
-    let title: String  // ADD THIS
-    let content: [String]  // CHANGE FROM String to [String] for multi-page
+    let title: String
+    let content: [String] // Array for multi-page support
     let backgroundType: BackgroundType
     let moods: [Mood]
     let fontSize: CGFloat

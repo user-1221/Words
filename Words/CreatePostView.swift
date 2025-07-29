@@ -1,7 +1,5 @@
 import SwiftUI
 
-import SwiftUI
-
 // MARK: - Create Post View
 struct CreatePostView: View {
     @EnvironmentObject var dataController: DataController
@@ -231,6 +229,7 @@ struct CreatePostView: View {
         fontSize = 20
     }
 }
+
 // MARK: - Background Chip Component
 struct BackgroundChip: View {
     let background: WordPost.BackgroundType
@@ -289,7 +288,8 @@ struct MoodSelectionChip: View {
 
 // MARK: - Preview Post View
 struct PreviewPostView: View {
-    let content: String
+    let title: String
+    let pages: [String]
     let background: WordPost.BackgroundType
     let moods: [Mood]
     let fontSize: CGFloat
@@ -316,18 +316,41 @@ struct PreviewPostView: View {
                     Spacer()
                     
                     Color.clear
-                        .frame(width: 44) // Balance the "Done" button
+                        .frame(width: 44)
                 }
                 .padding()
                 
+                // Title
+                Text(title)
+                    .font(.system(size: 24, weight: .semibold, design: .serif))
+                    .foregroundColor(background.textColor)
+                    .padding(.horizontal)
+                
                 Spacer()
                 
-                ScrollView {
-                    Text(content)
-                        .font(.system(size: fontSize, weight: .light, design: .serif))
-                        .foregroundColor(background.textColor)
-                        .multilineTextAlignment(.center)
-                        .padding(40)
+                // Multi-page content
+                if pages.count > 1 {
+                    TabView {
+                        ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
+                            ScrollView {
+                                Text(page)
+                                    .font(.system(size: fontSize, weight: .light, design: .serif))
+                                    .foregroundColor(background.textColor)
+                                    .multilineTextAlignment(.center)
+                                    .padding(40)
+                            }
+                            .tag(index)
+                        }
+                    }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+                } else {
+                    ScrollView {
+                        Text(pages.first ?? "")
+                            .font(.system(size: fontSize, weight: .light, design: .serif))
+                            .foregroundColor(background.textColor)
+                            .multilineTextAlignment(.center)
+                            .padding(40)
+                    }
                 }
                 
                 Spacer()

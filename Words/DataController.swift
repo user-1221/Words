@@ -154,7 +154,6 @@ class DataController: ObservableObject {
     }
     
     // MARK: - Post Operations
-    // In createPost method, update to:
     func createPost(title: String, content: [String], backgroundType: WordPost.BackgroundType, moods: [Mood], fontSize: CGFloat) {
         guard let userId = currentUserId else {
             errorMessage = "User not authenticated"
@@ -164,8 +163,8 @@ class DataController: ObservableObject {
         isLoading = true
         
         let postData: [String: Any] = [
-            "title": title,  // ADD THIS
-            "content": content,  // Now accepts array
+            "title": title,
+            "content": content,
             "backgroundType": backgroundType.rawValue,
             "moods": moods.map { $0.rawValue },
             "fontSize": fontSize,
@@ -193,9 +192,12 @@ class DataController: ObservableObject {
             return
         }
         
+        // Get first 50 characters of first page for display
+        let postSnippet = String(post.content.first?.prefix(50) ?? "")
+        
         let appreciationData: [String: Any] = [
             "postId": postId,
-            "postContent": String(post.content.prefix(50)), // Store first 50 chars for display
+            "postContent": postSnippet,
             "message": message,
             "sentAt": Timestamp(date: Date()),
             "senderId": senderId,

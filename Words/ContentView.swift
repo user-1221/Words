@@ -91,18 +91,15 @@ struct HomeView: View {
         }
     }
 }
+
 // MARK: - Full Screen Post View (Reels-style)
 struct FullScreenPostView: View {
     let post: WordPost
     let onAppreciate: () -> Void
     @EnvironmentObject var dataController: DataController
     
-    // Check if user has already sent appreciation through the database
     var hasUserAppreciated: Bool {
-        guard let postId = post.id else {
-            return false
-        }
-        
+        guard let postId = post.id else { return false }
         return dataController.hasUserAppreciatedPost(postId: postId)
     }
     
@@ -112,42 +109,41 @@ struct FullScreenPostView: View {
             post.backgroundType.gradient
                 .ignoresSafeArea()
             
-            // Content - rest remains the same
+            // Content
             VStack {
                 // Top bar with metadata
-                HStack {
-                    // Moods
-                    HStack(spacing: 8) {
-                        ForEach(post.moods.prefix(3), id: \.self) { mood in
-                            HStack(spacing: 4) {
-                                Text(mood.icon)
-                                Text(mood.rawValue)
-                                    .font(.system(size: 12, weight: .medium))
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        // Moods
+                        HStack(spacing: 8) {
+                            ForEach(post.moods.prefix(3), id: \.self) { mood in
+                                HStack(spacing: 4) {
+                                    Text(mood.icon)
+                                    Text(mood.rawValue)
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color.black.opacity(0.2))
+                                .foregroundColor(post.backgroundType.textColor)
+                                .cornerRadius(15)
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.black.opacity(0.2))
-                            .foregroundColor(post.backgroundType.textColor)
-                            .cornerRadius(15)
                         }
+                        
+                        Spacer()
                     }
-                    // In FullScreenPostView, add this after the moods display:
-                    // Title display (add this after the moods HStack)
-                    Text(post.title)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(post.backgroundType.textColor.opacity(0.8))
-                        .padding(.horizontal)
-                        .padding(.top, 8)
                     
-                    Spacer()
+                    // Title display
+                    Text(post.title)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(post.backgroundType.textColor.opacity(0.8))
                 }
                 .padding(.horizontal)
-                .padding(.top, 60) // Fixed padding to avoid status bar
+                .padding(.top, 60)
                 
                 Spacer()
                 
                 // Main content - centered
-                // Replace the single ScrollView with this:
                 if post.content.count > 1 {
                     TabView {
                         ForEach(Array(post.content.enumerated()), id: \.offset) { index, page in
@@ -173,7 +169,6 @@ struct FullScreenPostView: View {
                     }
                     .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
                 }
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
                 
                 Spacer()
                 
@@ -225,7 +220,7 @@ struct FullScreenPostView: View {
                     }
                 }
                 .padding(.horizontal)
-                .padding(.bottom, 100) // Fixed padding to account for tab bar
+                .padding(.bottom, 100)
             }
             
             // Swipe indicator (subtle)
@@ -238,11 +233,12 @@ struct FullScreenPostView: View {
                             .frame(width: 20, height: 1)
                     }
                 }
-                .padding(.bottom, 120) // Fixed padding
+                .padding(.bottom, 120)
             }
         }
     }
 }
+
 // MARK: - Loading View
 struct LoadingView: View {
     var body: some View {
@@ -334,14 +330,37 @@ struct FullPostView: View {
                     .padding()
                 }
                 
+                // Title
+                Text(post.title)
+                    .font(.system(size: 24, weight: .semibold, design: .serif))
+                    .foregroundColor(post.backgroundType.textColor)
+                    .padding(.horizontal)
+                
                 Spacer()
                 
-                ScrollView {
-                    Text(post.content)
-                        .font(.system(size: post.fontSize, weight: .light, design: .serif))
-                        .foregroundColor(post.backgroundType.textColor)
-                        .multilineTextAlignment(.center)
-                        .padding(40)
+                // Multi-page content
+                if post.content.count > 1 {
+                    TabView {
+                        ForEach(Array(post.content.enumerated()), id: \.offset) { index, page in
+                            ScrollView {
+                                Text(page)
+                                    .font(.system(size: post.fontSize, weight: .light, design: .serif))
+                                    .foregroundColor(post.backgroundType.textColor)
+                                    .multilineTextAlignment(.center)
+                                    .padding(40)
+                            }
+                            .tag(index)
+                        }
+                    }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+                } else {
+                    ScrollView {
+                        Text(post.content.first ?? "")
+                            .font(.system(size: post.fontSize, weight: .light, design: .serif))
+                            .foregroundColor(post.backgroundType.textColor)
+                            .multilineTextAlignment(.center)
+                            .padding(40)
+                    }
                 }
                 
                 Spacer()

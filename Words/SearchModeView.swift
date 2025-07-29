@@ -40,7 +40,10 @@ struct SearchModeView: View {
                         EmptySearchView()
                     } else {
                         ScrollView {
-                            StaggeredGrid(columns: 2, spacing: 12) {
+                            LazyVGrid(columns: [
+                                GridItem(.flexible()),
+                                GridItem(.flexible())
+                            ], spacing: 12) {
                                 ForEach(filteredPosts) { post in
                                     InstagramStyleCard(post: post) {
                                         selectedPost = post
@@ -108,33 +111,6 @@ struct SearchModeView: View {
         .sheet(isPresented: $showingFullPost) {
             if let post = selectedPost {
                 FullPostView(post: post)
-            }
-        }
-    }
-}
-
-// MARK: - Staggered Grid Layout
-struct StaggeredGrid<Content: View>: View {
-    let columns: Int
-    let spacing: CGFloat
-    let content: () -> Content
-    
-    init(columns: Int, spacing: CGFloat = 8, @ViewBuilder content: @escaping () -> Content) {
-        self.columns = columns
-        self.spacing = spacing
-        self.content = content
-    }
-    
-    var body: some View {
-        HStack(alignment: .top, spacing: spacing) {
-            ForEach(0..<columns, id: \.self) { column in
-                VStack(spacing: spacing) {
-                    ForEach(Array(Mirror(reflecting: content()).children.enumerated()), id: \.offset) { index, child in
-                        if index % columns == column {
-                            AnyView(child.value as! any View)
-                        }
-                    }
-                }
             }
         }
     }
@@ -219,5 +195,54 @@ struct InstagramStyleCard: View {
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
         .onTapGesture(perform: onTap)
+    }
+}
+
+// MARK: - Mood Chip
+struct MoodChip: View {
+    let mood: Mood
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Text(mood.icon)
+                    .font(.system(size: 20))
+                Text(mood.rawValue)
+                    .font(.system(size: 11))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(isSelected ? Color.blue : Color(UIColor.systemGray5))
+            .foregroundColor(isSelected ? .white : .primary)
+            .cornerRadius(8)
+        }
+    }
+}
+
+// MARK: - Empty Search View
+struct EmptySearchView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 60))
+                .foregroundColor(.gray.opacity(0.3))
+            
+            Text("No words found")
+                .font(.system(size: 24, weight: .light))
+                .foregroundColor(.secondary)
+            
+            Text("Try adjusting your mood filters\nor wait for new posts")
+                .font(.system(size: 16))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            Spacer()
+        }
+        .padding()
     }
 }

@@ -135,17 +135,17 @@ struct MyWordCard: View {
     @State private var showingFullPost = false
     
     var body: some View {
-        // In MyWordCard, replace the content display with:
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
+            // Title
             Text(post.title)
                 .font(.system(size: 18, weight: .semibold))
                 .lineLimit(1)
             
+            // First page preview
             Text(post.content.first ?? "")
                 .font(.system(size: 16))
                 .lineLimit(3)
                 .foregroundColor(.secondary)
-        }
             
             HStack {
                 // Moods
@@ -169,6 +169,7 @@ struct MyWordCard: View {
                 .foregroundColor(.pink)
             }
             
+            // Date
             Text(post.createdAt.formatted(date: .abbreviated, time: .shortened))
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
@@ -312,7 +313,11 @@ struct SendAppreciationView: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.secondary)
                     
-                    Text(post.content)
+                    Text(post.title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .padding(.horizontal)
+                    
+                    Text(post.content.first ?? "")
                         .font(.system(size: 14))
                         .lineLimit(3)
                         .padding()
@@ -326,15 +331,17 @@ struct SendAppreciationView: View {
                         .font(.system(size: 16, weight: .medium))
                     
                     ForEach(templates, id: \.self) { template in
-                        Button(template) {
+                        Button(action: {
                             message = template
                             selectedTemplate = template
+                        }) {
+                            Text(template)
+                                .foregroundColor(.primary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .background(selectedTemplate == template ? Color.blue.opacity(0.2) : Color(UIColor.systemGray6))
+                                .cornerRadius(8)
                         }
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(selectedTemplate == template ? Color.blue.opacity(0.2) : Color(UIColor.systemGray6))
-                        .cornerRadius(8)
                     }
                 }
                 
@@ -353,14 +360,14 @@ struct SendAppreciationView: View {
                 Spacer()
                 
                 // Send button
-                Button("Send Appreciation") {
-                    sendAppreciation()
+                Button(action: sendAppreciation) {
+                    Text("Send Appreciation")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray : Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray : Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(12)
                 .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding()
@@ -426,10 +433,4 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)
     }
-}//
-//  ProfileView.swift
-//  Words
-//
-//  Created by Hiro on 2025/07/24.
-//
-
+}
