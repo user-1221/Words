@@ -135,11 +135,17 @@ struct MyWordCard: View {
     @State private var showingFullPost = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(post.content)
+        // In MyWordCard, replace the content display with:
+        VStack(alignment: .leading, spacing: 8) {
+            Text(post.title)
+                .font(.system(size: 18, weight: .semibold))
+                .lineLimit(1)
+            
+            Text(post.content.first ?? "")
                 .font(.system(size: 16))
-                .lineLimit(4)
-                .multilineTextAlignment(.leading)
+                .lineLimit(3)
+                .foregroundColor(.secondary)
+        }
             
             HStack {
                 // Moods

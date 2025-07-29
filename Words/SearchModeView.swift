@@ -6,6 +6,7 @@ struct SearchModeView: View {
     @State private var selectedMoods: Set<Mood> = []
     @State private var showingFullPost = false
     @State private var selectedPost: WordPost?
+    @State private var showingFilters = false
     
     var filteredPosts: [WordPost] {
         dataController.getPostsByMoods(selectedMoods)
@@ -13,61 +14,97 @@ struct SearchModeView: View {
     
     var body: some View {
         NavigationView {
-            GeometryReader { geo in
+            ZStack(alignment: .top) {
+                // Main content
                 VStack(spacing: 0) {
-                    // Mood Filter Bar (auto-sized)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        LazyHStack(spacing: 12) {
-                            ForEach(Mood.allCases, id: \.self) { mood in
-                                MoodChip(
-                                    mood: mood,
-                                    isSelected: selectedMoods.contains(mood)
-                                ) {
-                                    if selectedMoods.contains(mood) {
-                                        selectedMoods.remove(mood)
-                                    } else {
-                                        selectedMoods.insert(mood)
+                    // Top bar with search icon
+                    HStack {
+                        Spacer()
+                        
+                        Button(action: {
+                            withAnimation(.spring()) {
+                                showingFilters.toggle()
+                            }
+                        }) {
+                            Image(systemName: showingFilters ? "xmark" : "magnifyingglass")
+                                .font(.system(size: 22))
+                                .foregroundColor(.primary)
+                                .frame(width: 44, height: 44)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    
+                    // Posts Grid
+                    if filteredPosts.isEmpty {
+                        EmptySearchView()
+                    } else {
+                        ScrollView {
+                            StaggeredGrid(columns: 2, spacing: 12) {
+                                ForEach(filteredPosts) { post in
+                                    InstagramStyleCard(post: post) {
+                                        selectedPost = post
+                                        showingFullPost = true
                                     }
                                 }
                             }
+                            .padding()
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 4) // Shrink height
-                        .frame(height: geo.size.height * 0.2)
                     }
-                    .background(Color(UIColor.systemGray6))
-                    
-                    // Posts List fills the rest
-                    Group {
-                        if filteredPosts.isEmpty {
-                            EmptySearchView()
-                        } else {
-                            ScrollView {
-                                LazyVStack(spacing: 16) {
-                                    ForEach(filteredPosts) { post in
-                                        PostCard(post: post) {
-                                            selectedPost = post
-                                            showingFullPost = true
+                }
+                
+                // Collapsible Filter Bar
+                if showingFilters {
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: 60) // Space for top bar
+                        
+                        VStack(spacing: 12) {
+                            Text("Filter by Mood")
+                                .font(.system(size: 16, weight: .semibold))
+                            
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                                ForEach(Mood.allCases, id: \.self) { mood in
+                                    MoodChip(
+                                        mood: mood,
+                                        isSelected: selectedMoods.contains(mood)
+                                    ) {
+                                        if selectedMoods.contains(mood) {
+                                            selectedMoods.remove(mood)
+                                        } else {
+                                            selectedMoods.insert(mood)
                                         }
                                     }
                                 }
-                                .padding()
-                                .frame(maxHeight: .infinity)
+                            }
+                            
+                            if !selectedMoods.isEmpty {
+                                Button("Clear All") {
+                                    selectedMoods.removeAll()
+                                }
+                                .font(.system(size: 14))
+                                .foregroundColor(.blue)
                             }
                         }
+                        .padding()
+                        .background(Color(UIColor.systemBackground))
+                        .cornerRadius(20)
+                        .shadow(radius: 10)
+                        .padding(.horizontal)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                     }
-                    .frame(maxHeight: .infinity)
+                    .background(
+                        Color.black.opacity(0.3)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                withAnimation(.spring()) {
+                                    showingFilters = false
+                                }
+                            }
+                    )
                 }
             }
-            .navigationTitle("Search Words")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarHidden(true)
         }
-        .sheet(isPresented: $showingFullPost) {
-            if let post = selectedPost {
-                FullPostView(post: post)
-            }
-        }
-
         .sheet(isPresented: $showingFullPost) {
             if let post = selectedPost {
                 FullPostView(post: post)
@@ -75,94 +112,112 @@ struct SearchModeView: View {
         }
     }
 }
-// MARK: - Mood Chip Component
-struct MoodChip: View {
-    let mood: Mood
-    let isSelected: Bool
-    let action: () -> Void
+
+// MARK: - Staggered Grid Layout
+struct StaggeredGrid<Content: View>: View {
+    let columns: Int
+    let spacing: CGFloat
+    let content: () -> Content
+    
+    init(columns: Int, spacing: CGFloat = 8, @ViewBuilder content: @escaping () -> Content) {
+        self.columns = columns
+        self.spacing = spacing
+        self.content = content
+    }
     
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Text(mood.icon)
-                Text(mood.rawValue)
-                    .font(.system(size: 14, weight: .medium))
+        HStack(alignment: .top, spacing: spacing) {
+            ForEach(0..<columns, id: \.self) { column in
+                VStack(spacing: spacing) {
+                    ForEach(Array(Mirror(reflecting: content()).children.enumerated()), id: \.offset) { index, child in
+                        if index % columns == column {
+                            AnyView(child.value as! any View)
+                        }
+                    }
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(isSelected ? Color.blue : Color(UIColor.systemGray5))
-            .foregroundColor(isSelected ? .white : .primary)
-            .cornerRadius(20)
         }
     }
 }
 
-// MARK: - Post Card Component
-struct PostCard: View {
+// MARK: - Instagram Style Card
+struct InstagramStyleCard: View {
     let post: WordPost
     let onTap: () -> Void
     
+    // Random heights for staggered effect
+    private var cardHeight: CGFloat {
+        let baseHeight: CGFloat = 180
+        let variations: [CGFloat] = [0, 40, 80, 120]
+        let index = abs(post.title.hashValue) % variations.count
+        return baseHeight + variations[index]
+    }
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Content preview
-            Text(post.content)
-                .font(.system(size: 16, weight: .light))
-                .lineLimit(4)
-                .multilineTextAlignment(.leading)
-            
-            // Metadata
-            HStack {
-                // Moods
-                HStack(spacing: 6) {
-                    ForEach(post.moods.prefix(3), id: \.self) { mood in
-                        Text("\(mood.icon)")
-                            .font(.system(size: 12))
+        VStack(alignment: .leading, spacing: 0) {
+            // Main content area with background
+            ZStack(alignment: .bottomLeading) {
+                post.backgroundType.gradient
+                
+                // Gradient overlay for better text readability
+                LinearGradient(
+                    colors: [Color.clear, Color.black.opacity(0.6)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+                
+                // Title prominently displayed
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(post.title)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                        .lineLimit(2)
+                    
+                    // Mood icons
+                    HStack(spacing: 6) {
+                        ForEach(post.moods.prefix(2), id: \.self) { mood in
+                            Text(mood.icon)
+                                .font(.system(size: 14))
+                        }
                     }
+                }
+                .padding()
+            }
+            .frame(height: cardHeight)
+            .cornerRadius(12)
+            
+            // Bottom info bar
+            HStack {
+                // Page count if multi-page
+                if post.content.count > 1 {
+                    HStack(spacing: 2) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 10))
+                        Text("\(post.content.count)")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundColor(.secondary)
                 }
                 
                 Spacer()
                 
                 // Appreciation count
-                HStack(spacing: 4) {
-                    Image(systemName: "heart.fill")
-                        .font(.system(size: 12))
-                    Text("\(post.appreciationCount)")
-                        .font(.system(size: 12))
+                if post.appreciationCount > 0 {
+                    HStack(spacing: 2) {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 10))
+                        Text("\(post.appreciationCount)")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundColor(.pink)
                 }
-                .foregroundColor(.pink)
             }
-            
-            // Date
-            Text(post.createdAt.formatted(date: .abbreviated, time: .omitted))
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(post.backgroundType.gradient.opacity(0.3))
+        .background(Color(UIColor.secondarySystemBackground))
         .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
         .onTapGesture(perform: onTap)
-    }
-}
-
-// MARK: - Empty Search View
-struct EmptySearchView: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 60))
-                .foregroundColor(.gray.opacity(0.3))
-            
-            Text("No words found")
-                .font(.system(size: 24, weight: .light))
-                .foregroundColor(.secondary)
-            
-            Text("Try adjusting your mood filters\nor check back later")
-                .font(.system(size: 16))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

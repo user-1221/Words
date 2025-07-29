@@ -1,16 +1,21 @@
 import SwiftUI
 
+import SwiftUI
+
 // MARK: - Create Post View
 struct CreatePostView: View {
     @EnvironmentObject var dataController: DataController
-    @State private var content = ""
+    @State private var title = ""
+    @State private var pages: [String] = [""]
+    @State private var currentPageIndex = 0
     @State private var selectedMoods: Set<Mood> = []
     @State private var selectedBackground: WordPost.BackgroundType = .paper
     @State private var fontSize: CGFloat = 20
     @State private var showingPreview = false
     
     var canPost: Bool {
-        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        pages.contains(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) &&
         !selectedMoods.isEmpty &&
         selectedMoods.count <= 3
     }
@@ -21,26 +26,71 @@ struct CreatePostView: View {
                 // Content Input
                 ScrollView {
                     VStack(spacing: 20) {
-                        // Text Editor
+                        // Title Input
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Title")
+                                .font(.system(size: 18, weight: .medium))
+                            
+                            TextField("Give your words a title...", text: $title)
+                                .font(.system(size: 20, weight: .regular))
+                                .padding()
+                                .background(Color.clear)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                )
+                        }
+                        
+                        // Page Navigation
+                        HStack {
+                            Text("Page \(currentPageIndex + 1) of \(pages.count)")
+                                .font(.system(size: 16, weight: .medium))
+                            
+                            Spacer()
+                            
+                            HStack(spacing: 12) {
+                                Button(action: previousPage) {
+                                    Image(systemName: "chevron.left")
+                                        .foregroundColor(currentPageIndex > 0 ? .blue : .gray)
+                                }
+                                .disabled(currentPageIndex == 0)
+                                
+                                Button(action: nextPage) {
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.blue)
+                                }
+                                
+                                Button(action: addNewPage) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                        
+                        // Text Editor for current page
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Your Words")
                                 .font(.system(size: 18, weight: .medium))
                             
                             ZStack(alignment: .topLeading) {
-                                if content.isEmpty {
+                                if pages[currentPageIndex].isEmpty {
                                     Text("Share your thoughts, feelings, or reflections...")
                                         .foregroundColor(.secondary)
                                         .padding(.top, 8)
                                         .padding(.leading, 4)
                                 }
                                 
-                                TextEditor(text: $content)
+                                TextEditor(text: $pages[currentPageIndex])
                                     .font(.system(size: fontSize, weight: .light, design: .serif))
                                     .frame(minHeight: 200)
+                                    .background(Color.clear)
                             }
                             .padding()
-                            .background(selectedBackground.gradient.opacity(0.3))
-                            .cornerRadius(12)
+                            .background(Color.clear)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(selectedBackground.gradient.opacity(0.5), lineWidth: 2)
+                            )
                         }
                         
                         // Font Size Slider
@@ -133,7 +183,8 @@ struct CreatePostView: View {
         }
         .sheet(isPresented: $showingPreview) {
             PreviewPostView(
-                content: content,
+                title: title,
+                pages: pages.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty },
                 background: selectedBackground,
                 moods: Array(selectedMoods),
                 fontSize: fontSize
@@ -141,24 +192,45 @@ struct CreatePostView: View {
         }
     }
     
+    private func previousPage() {
+        if currentPageIndex > 0 {
+            currentPageIndex -= 1
+        }
+    }
+    
+    private func nextPage() {
+        if currentPageIndex < pages.count - 1 {
+            currentPageIndex += 1
+        }
+    }
+    
+    private func addNewPage() {
+        pages.append("")
+        currentPageIndex = pages.count - 1
+    }
+    
     private func createPost() {
         guard canPost else { return }
         
+        let nonEmptyPages = pages.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        
         dataController.createPost(
-            content: content,
+            title: title,
+            content: nonEmptyPages,
             backgroundType: selectedBackground,
             moods: Array(selectedMoods),
             fontSize: fontSize
         )
         
         // Reset form
-        content = ""
+        title = ""
+        pages = [""]
+        currentPageIndex = 0
         selectedMoods = []
         selectedBackground = .paper
         fontSize = 20
     }
 }
-
 // MARK: - Background Chip Component
 struct BackgroundChip: View {
     let background: WordPost.BackgroundType

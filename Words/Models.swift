@@ -6,7 +6,8 @@ import SwiftUI
 // MARK: - Word Post Model
 struct WordPost: Identifiable, Codable {
     @DocumentID var id: String?
-    let content: String
+    let title: String  // ADD THIS
+    let content: [String]  // CHANGE FROM String to [String] for multi-page
     let backgroundType: BackgroundType
     let moods: [Mood]
     let fontSize: CGFloat

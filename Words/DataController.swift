@@ -154,7 +154,8 @@ class DataController: ObservableObject {
     }
     
     // MARK: - Post Operations
-    func createPost(content: String, backgroundType: WordPost.BackgroundType, moods: [Mood], fontSize: CGFloat) {
+    // In createPost method, update to:
+    func createPost(title: String, content: [String], backgroundType: WordPost.BackgroundType, moods: [Mood], fontSize: CGFloat) {
         guard let userId = currentUserId else {
             errorMessage = "User not authenticated"
             return
@@ -163,7 +164,8 @@ class DataController: ObservableObject {
         isLoading = true
         
         let postData: [String: Any] = [
-            "content": content,
+            "title": title,  // ADD THIS
+            "content": content,  // Now accepts array
             "backgroundType": backgroundType.rawValue,
             "moods": moods.map { $0.rawValue },
             "fontSize": fontSize,

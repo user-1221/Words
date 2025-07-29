@@ -131,6 +131,13 @@ struct FullScreenPostView: View {
                             .cornerRadius(15)
                         }
                     }
+                    // In FullScreenPostView, add this after the moods display:
+                    // Title display (add this after the moods HStack)
+                    Text(post.title)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(post.backgroundType.textColor.opacity(0.8))
+                        .padding(.horizontal)
+                        .padding(.top, 8)
                     
                     Spacer()
                 }
@@ -140,12 +147,31 @@ struct FullScreenPostView: View {
                 Spacer()
                 
                 // Main content - centered
-                ScrollView {
-                    Text(post.content)
-                        .font(.system(size: post.fontSize, weight: .light, design: .serif))
-                        .foregroundColor(post.backgroundType.textColor)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 30)
+                // Replace the single ScrollView with this:
+                if post.content.count > 1 {
+                    TabView {
+                        ForEach(Array(post.content.enumerated()), id: \.offset) { index, page in
+                            ScrollView {
+                                Text(page)
+                                    .font(.system(size: post.fontSize, weight: .light, design: .serif))
+                                    .foregroundColor(post.backgroundType.textColor)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 30)
+                            }
+                            .tag(index)
+                        }
+                    }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+                    .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
+                } else {
+                    ScrollView {
+                        Text(post.content.first ?? "")
+                            .font(.system(size: post.fontSize, weight: .light, design: .serif))
+                            .foregroundColor(post.backgroundType.textColor)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 30)
+                    }
+                    .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
                 }
                 .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
                 
