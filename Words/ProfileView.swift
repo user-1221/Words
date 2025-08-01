@@ -7,9 +7,8 @@ struct ProfileView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // User's background
-                dataController.userPreferences.selectedBackground.gradient
-                    .ignoresSafeArea()
+                // User's background - persistent video
+                PersistentVideoBackgroundView(backgroundType: dataController.userPreferences.selectedBackground)
                 
                 List {
                     Section {
@@ -109,14 +108,19 @@ struct ProfileView: View {
 struct BackgroundSettingsView: View {
     @EnvironmentObject var dataController: DataController
     @Environment(\.dismiss) var dismiss
+    @State private var isLoadingVideo = false
+    @State private var selectedBackground: BackgroundType?
+    
+    // Separate backgrounds into categories
+    let gradientBackgrounds: [BackgroundType] = [.paper, .fog, .sunset, .night, .ocean, .forest, .lavender, .mint]
+    let videoBackgrounds: [BackgroundType] = [.rainForest, .northernLights, .oceanWaves, .cloudySky, .fireplace, .snowfall, .cityNight, .galaxySpace]
     
     var body: some View {
         ZStack {
-            dataController.userPreferences.selectedBackground.gradient
-                .ignoresSafeArea()
+            PersistentVideoBackgroundView(backgroundType: dataController.userPreferences.selectedBackground)
             
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 30) {
                     Text("Choose Your Background")
                         .font(.system(size: 24, weight: .semibold))
                         .foregroundColor(dataController.userPreferences.selectedBackground.textColor)
@@ -128,25 +132,91 @@ struct BackgroundSettingsView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                     
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 20) {
-                        ForEach(BackgroundType.allCases, id: \.self) { background in
-                            BackgroundSelectionCard(
-                                background: background,
-                                isSelected: dataController.userPreferences.selectedBackground == background
-                            ) {
-                                withAnimation(.spring()) {
-                                    dataController.updateBackground(background)
+                    // Gradient Backgrounds Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Colors")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(dataController.userPreferences.selectedBackground.textColor)
+                            .padding(.horizontal)
+                        
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 20) {
+                            ForEach(gradientBackgrounds, id: \.self) { background in
+                                BackgroundSelectionCard(
+                                    background: background,
+                                    isSelected: dataController.userPreferences.selectedBackground == background,
+                                    isLoading: false
+                                ) {
+                                    withAnimation(.spring()) {
+                                        dataController.updateBackground(background)
+                                    }
                                 }
                             }
                         }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
+                    
+                    // Video Backgrounds Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Video Wallpapers")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(dataController.userPreferences.selectedBackground.textColor)
+                            .padding(.horizontal)
+                        
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 20) {
+                            ForEach(videoBackgrounds, id: \.self) { background in
+                                BackgroundSelectionCard(
+                                    background: background,
+                                    isSelected: dataController.userPreferences.selectedBackground == background,
+                                    isLoading: isLoadingVideo && selectedBackground == background
+                                ) {
+                                    selectVideoBackground(background)
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                    
                     .padding(.bottom, 40)
                 }
+            }
+            
+            // Loading overlay
+            if isLoadingVideo {
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    
+                    Text("Loading video background...")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                }
+                .padding(40)
+                .background(Color.black.opacity(0.8))
+                .cornerRadius(20)
             }
         }
         .navigationTitle("Background Theme")
         .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    private func selectVideoBackground(_ background: BackgroundType) {
+        selectedBackground = background
+        isLoadingVideo = true
+        
+        // Load the video in the manager first
+        VideoBackgroundManager.shared.loadVideo(for: background)
+        
+        // Update after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            withAnimation(.spring()) {
+                dataController.updateBackground(background)
+                isLoadingVideo = false
+            }
+        }
     }
 }
 
@@ -154,17 +224,55 @@ struct BackgroundSettingsView: View {
 struct BackgroundSelectionCard: View {
     let background: BackgroundType
     let isSelected: Bool
+    let isLoading: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
                 ZStack {
-                    background.gradient
+                    if background.isVideo {
+                        // Show thumbnail for video backgrounds
+                        AsyncImage(url: URL(string: background.thumbnailURL ?? "")) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            // Fallback gradient while loading thumbnail
+                            background.gradient
+                        }
                         .frame(height: 120)
+                        .clipped()
                         .cornerRadius(12)
+                        
+                        // Video indicator overlay
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Image(systemName: "video.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.white)
+                                    .padding(8)
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(8)
+                                    .padding(8)
+                            }
+                            Spacer()
+                        }
+                    } else {
+                        // Regular gradient preview
+                        background.gradient
+                            .frame(height: 120)
+                            .cornerRadius(12)
+                    }
                     
-                    if isSelected {
+                    if isLoading {
+                        Color.black.opacity(0.6)
+                            .cornerRadius(12)
+                        
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    } else if isSelected {
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(Color.blue, lineWidth: 3)
                         
@@ -184,7 +292,7 @@ struct BackgroundSelectionCard: View {
     }
 }
 
-// MARK: - My Words View
+// MARK: - My Words View (Updated)
 struct MyWordsView: View {
     @EnvironmentObject var dataController: DataController
     
@@ -194,8 +302,7 @@ struct MyWordsView: View {
     
     var body: some View {
         ZStack {
-            dataController.userPreferences.selectedBackground.gradient
-                .ignoresSafeArea()
+            PersistentVideoBackgroundView(backgroundType: dataController.userPreferences.selectedBackground)
             
             VStack {
                 if myPosts.isEmpty {
@@ -302,14 +409,13 @@ struct MyWordCard: View {
     }
 }
 
-// MARK: - Appreciation Inbox View
+// MARK: - Appreciation Inbox View (Updated)
 struct AppreciationInboxView: View {
     @EnvironmentObject var dataController: DataController
     
     var body: some View {
         ZStack {
-            dataController.userPreferences.selectedBackground.gradient
-                .ignoresSafeArea()
+            PersistentVideoBackgroundView(backgroundType: dataController.userPreferences.selectedBackground)
             
             VStack {
                 if dataController.myAppreciations.isEmpty {
@@ -414,7 +520,7 @@ struct AppreciationCard: View {
     }
 }
 
-// MARK: - Send Appreciation View
+// MARK: - Send Appreciation View (Updated)
 struct SendAppreciationView: View {
     let post: WordPost
     @EnvironmentObject var dataController: DataController
@@ -433,8 +539,7 @@ struct SendAppreciationView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                dataController.userPreferences.selectedBackground.gradient
-                    .ignoresSafeArea()
+                PersistentVideoBackgroundView(backgroundType: dataController.userPreferences.selectedBackground)
                 
                 VStack(spacing: 20) {
                     // Post preview
@@ -523,14 +628,13 @@ struct SendAppreciationView: View {
     }
 }
 
-// MARK: - Settings View
+// MARK: - Settings View (Updated)
 struct SettingsView: View {
     @EnvironmentObject var dataController: DataController
     
     var body: some View {
         ZStack {
-            dataController.userPreferences.selectedBackground.gradient
-                .ignoresSafeArea()
+            PersistentVideoBackgroundView(backgroundType: dataController.userPreferences.selectedBackground)
             
             List {
                 Section("Display") {

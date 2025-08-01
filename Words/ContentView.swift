@@ -38,6 +38,15 @@ struct ContentView: View {
                 .badge(dataController.unreadAppreciationCount > 0 ? "\(dataController.unreadAppreciationCount)" : nil)
                 .tag(4)
         }
+        .onAppear {
+            // Set tab bar appearance
+            let appearance = UITabBarAppearance()
+            appearance.configureWithOpaqueBackground()
+            appearance.backgroundColor = UIColor.white.withAlphaComponent(0.9)
+            
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+        }
         .onReceive(dataController.$errorMessage) { errorMessage in
             showingError = errorMessage != nil
         }
@@ -53,11 +62,13 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Home View
+// MARK: - Home View with Vertical Scroll and Fade Animation
 struct HomeView: View {
     @EnvironmentObject var dataController: DataController
     @State private var showingSendAppreciation = false
     @State private var selectedPost: WordPost?
+    @State private var currentIndex = 0
+    @State private var dragOffset: CGFloat = 0
     
     var userBackground: BackgroundType {
         dataController.userPreferences.selectedBackground
@@ -70,10 +81,14 @@ struct HomeView: View {
             } else if dataController.posts.isEmpty {
                 EmptyHomeView()
             } else {
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 0) {
-                        ForEach(dataController.posts) { post in
-                            FullScreenPostView(
+                ZStack {
+                    // Background stays constant - using persistent video
+                    PersistentVideoBackgroundView(backgroundType: userBackground)
+                    
+                    // Content with custom vertical paging
+                    ZStack {
+                        ForEach(Array(dataController.posts.enumerated()), id: \.offset) { index, post in
+                            FullScreenPostContent(
                                 post: post,
                                 background: userBackground,
                                 onAppreciate: {
@@ -81,12 +96,36 @@ struct HomeView: View {
                                     showingSendAppreciation = true
                                 }
                             )
-                            .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                            .opacity(index == currentIndex ? 1 : 0)
+                            .animation(.easeInOut(duration: 0.5), value: currentIndex)
                         }
                     }
+                    
+                    // Gesture overlay for vertical scrolling
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    dragOffset = value.translation.height
+                                }
+                                .onEnded { value in
+                                    let threshold: CGFloat = 50
+                                    
+                                    withAnimation(.easeInOut(duration: 0.5)) {
+                                        if value.translation.height < -threshold {
+                                            // Swipe up - next post
+                                            currentIndex = min(currentIndex + 1, dataController.posts.count - 1)
+                                        } else if value.translation.height > threshold {
+                                            // Swipe down - previous post
+                                            currentIndex = max(currentIndex - 1, 0)
+                                        }
+                                        dragOffset = 0
+                                    }
+                                }
+                        )
                 }
                 .ignoresSafeArea()
-                .scrollTargetBehavior(.paging)
             }
         }
         .sheet(isPresented: $showingSendAppreciation) {
@@ -97,12 +136,13 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Full Screen Post View (Reels-style)
-struct FullScreenPostView: View {
+// MARK: - Full Screen Post Content (with horizontal page scroll)
+struct FullScreenPostContent: View {
     let post: WordPost
     let background: BackgroundType
     let onAppreciate: () -> Void
     @EnvironmentObject var dataController: DataController
+    @State private var currentPageIndex = 0
     
     var hasUserAppreciated: Bool {
         guard let postId = post.id else { return false }
@@ -110,137 +150,123 @@ struct FullScreenPostView: View {
     }
     
     var body: some View {
-        ZStack {
-            // User's selected background
-            background.gradient
-                .ignoresSafeArea()
-            
-            // Content
-            VStack {
-                // Top bar with metadata
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        // Moods
-                        HStack(spacing: 8) {
-                            ForEach(post.moods.prefix(3), id: \.self) { mood in
-                                HStack(spacing: 4) {
-                                    Text(mood.icon)
-                                    Text(mood.rawValue)
-                                        .font(.system(size: 12, weight: .medium))
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(Color.black.opacity(0.2))
-                                .foregroundColor(background.textColor)
-                                .cornerRadius(15)
+        VStack {
+            // Top bar with metadata
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    // Moods
+                    HStack(spacing: 8) {
+                        ForEach(post.moods.prefix(3), id: \.self) { mood in
+                            HStack(spacing: 4) {
+                                Text(mood.icon)
+                                Text(mood.rawValue)
+                                    .font(.system(size: 12, weight: .medium))
                             }
-                        }
-                        
-                        Spacer()
-                    }
-                    
-                    // Title display
-                    Text(post.title)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(background.textColor.opacity(0.8))
-                }
-                .padding(.horizontal)
-                .padding(.top, 60)
-                
-                Spacer()
-                
-                // Main content - centered
-                if post.content.count > 1 {
-                    TabView {
-                        ForEach(Array(post.content.enumerated()), id: \.offset) { index, page in
-                            ScrollView {
-                                Text(page)
-                                    .font(.system(size: post.fontSize, weight: .light, design: .serif))
-                                    .foregroundColor(background.textColor)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 30)
-                            }
-                            .tag(index)
-                        }
-                    }
-                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-                    .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
-                } else {
-                    ScrollView {
-                        Text(post.content.first ?? "")
-                            .font(.system(size: post.fontSize, weight: .light, design: .serif))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.black.opacity(0.2))
                             .foregroundColor(background.textColor)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 30)
-                    }
-                    .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
-                }
-                
-                Spacer()
-                
-                // Bottom interaction area
-                HStack(alignment: .bottom, spacing: 20) {
-                    // Left side - post info
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(post.createdAt.formatted(date: .abbreviated, time: .omitted))
-                            .font(.system(size: 12))
-                            .foregroundColor(background.textColor.opacity(0.7))
+                            .cornerRadius(15)
+                        }
                     }
                     
                     Spacer()
-                    
-                    // Right side - actions
-                    VStack(spacing: 20) {
-                        // Appreciation button
-                        if post.authorId != dataController.currentUserId {
-                            Button(action: hasUserAppreciated ? {} : onAppreciate) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: hasUserAppreciated ? "heart.fill" : "heart")
-                                        .font(.system(size: 28))
-                                        .foregroundColor(hasUserAppreciated ? .pink : .white)
-                                    
-                                    if post.appreciationCount > 0 {
-                                        Text("\(post.appreciationCount)")
-                                            .font(.system(size: 12, weight: .medium))
-                                            .foregroundColor(.white)
-                                    }
-                                }
-                                .frame(width: 50, height: 50)
-                                .background(Color.black.opacity(0.3))
-                                .cornerRadius(25)
-                            }
-                            .disabled(hasUserAppreciated)
+                }
+                
+                // Title display
+                Text(post.title)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(background.textColor.opacity(0.8))
+            }
+            .padding(.horizontal)
+            .padding(.top, 60)
+            
+            Spacer()
+            
+            // Main content - horizontal scroll for pages
+            if post.content.count > 1 {
+                TabView(selection: $currentPageIndex) {
+                    ForEach(Array(post.content.enumerated()), id: \.offset) { index, page in
+                        ScrollView {
+                            Text(page)
+                                .font(.system(size: post.fontSize, weight: .light, design: .serif))
+                                .foregroundColor(background.textColor)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 30)
                         }
-                        
-                        // Share button (placeholder for future)
-                        Button(action: {}) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 24))
-                                .foregroundColor(.white)
-                                .frame(width: 50, height: 50)
-                                .background(Color.black.opacity(0.3))
-                                .cornerRadius(25)
-                        }
-                        .disabled(true)
-                        .opacity(0.5)
+                        .tag(index)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 100)
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
+            } else {
+                ScrollView {
+                    Text(post.content.first ?? "")
+                        .font(.system(size: post.fontSize, weight: .light, design: .serif))
+                        .foregroundColor(background.textColor)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 30)
+                }
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
             }
             
-            // Swipe indicator (subtle)
-            VStack {
-                Spacer()
-                HStack(spacing: 4) {
-                    ForEach(0..<3) { _ in
-                        Rectangle()
-                            .fill(background.textColor.opacity(0.3))
-                            .frame(width: 20, height: 1)
+            Spacer()
+            
+            // Bottom interaction area
+            HStack(alignment: .bottom, spacing: 20) {
+                // Left side - post info
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(post.createdAt.formatted(date: .abbreviated, time: .omitted))
+                        .font(.system(size: 12))
+                        .foregroundColor(background.textColor.opacity(0.7))
+                    
+                    if post.content.count > 1 {
+                        Text("Page \(currentPageIndex + 1) of \(post.content.count)")
+                            .font(.system(size: 11))
+                            .foregroundColor(background.textColor.opacity(0.5))
                     }
                 }
-                .padding(.bottom, 120)
+                
+                Spacer()
+                
+                // Right side - actions
+                VStack(spacing: 20) {
+                    // Appreciation button
+                    if post.authorId != dataController.currentUserId {
+                        Button(action: hasUserAppreciated ? {} : onAppreciate) {
+                            VStack(spacing: 4) {
+                                Image(systemName: hasUserAppreciated ? "heart.fill" : "heart")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(hasUserAppreciated ? .pink : .white)
+                                
+                                if post.appreciationCount > 0 {
+                                    Text("\(post.appreciationCount)")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .frame(width: 50, height: 50)
+                            .background(Color.black.opacity(0.3))
+                            .cornerRadius(25)
+                        }
+                        .disabled(hasUserAppreciated)
+                    }
+                    
+                    // Share button (placeholder for future)
+                    Button(action: {}) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white)
+                            .frame(width: 50, height: 50)
+                            .background(Color.black.opacity(0.3))
+                            .cornerRadius(25)
+                    }
+                    .disabled(true)
+                    .opacity(0.5)
+                }
             }
+            .padding(.horizontal)
+            .padding(.bottom, 100)
         }
     }
 }
@@ -251,8 +277,7 @@ struct LoadingView: View {
     
     var body: some View {
         ZStack {
-            dataController.userPreferences.selectedBackground.gradient
-                .ignoresSafeArea()
+            PersistentVideoBackgroundView(backgroundType: dataController.userPreferences.selectedBackground)
             
             VStack(spacing: 20) {
                 ProgressView()
@@ -277,8 +302,7 @@ struct EmptyHomeView: View {
     
     var body: some View {
         ZStack {
-            background.gradient
-                .ignoresSafeArea()
+            PersistentVideoBackgroundView(backgroundType: background)
             
             VStack(spacing: 30) {
                 Spacer()
@@ -327,8 +351,7 @@ struct FullPostView: View {
     
     var body: some View {
         ZStack {
-            background.gradient
-                .ignoresSafeArea()
+            PersistentVideoBackgroundView(backgroundType: background)
             
             VStack {
                 HStack {

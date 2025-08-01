@@ -5,10 +5,13 @@ import SwiftUI
 // MARK: - User Preferences Model
 struct UserPreferences: Codable {
     var selectedBackground: BackgroundType = .paper
+    var backgroundVideoURL: String?
+    var backgroundThumbnailURL: String?
 }
 
-// MARK: - Background Type (Now for user preferences)
+// MARK: - Background Type (Now supports videos)
 enum BackgroundType: String, CaseIterable, Codable {
+    // Original gradient backgrounds
     case paper = "Paper"
     case fog = "Fog"
     case sunset = "Sunset"
@@ -17,6 +20,36 @@ enum BackgroundType: String, CaseIterable, Codable {
     case forest = "Forest"
     case lavender = "Lavender"
     case mint = "Mint"
+    
+    // Video backgrounds
+    case rainForest = "Rain Forest"
+    case northernLights = "Northern Lights"
+    case oceanWaves = "Ocean Waves"
+    case cloudySky = "Cloudy Sky"
+    case fireplace = "Fireplace"
+    case snowfall = "Snowfall"
+    case cityNight = "City Night"
+    case galaxySpace = "Galaxy Space"
+    
+    var isVideo: Bool {
+        switch self {
+        case .rainForest, .northernLights, .oceanWaves, .cloudySky,
+             .fireplace, .snowfall, .cityNight, .galaxySpace:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    // Cloudinary video URLs
+    var videoURL: String? {
+        return CloudinaryConfig.videoURL(for: self)
+    }
+    
+    // Thumbnail URLs for video previews
+    var thumbnailURL: String? {
+        return CloudinaryConfig.thumbnailURL(for: self)
+    }
     
     var gradient: LinearGradient {
         switch self {
@@ -68,14 +101,65 @@ enum BackgroundType: String, CaseIterable, Codable {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+        // Fallback gradients for video backgrounds
+        case .rainForest:
+            return LinearGradient(
+                colors: [Color(hex: "0F2027"), Color(hex: "203A43"), Color(hex: "2C5364")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        case .northernLights:
+            return LinearGradient(
+                colors: [Color(hex: "00C9FF"), Color(hex: "92FE9D")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .oceanWaves:
+            return LinearGradient(
+                colors: [Color(hex: "2E3192"), Color(hex: "1BFFFF")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        case .cloudySky:
+            return LinearGradient(
+                colors: [Color(hex: "757F9A"), Color(hex: "D7DDE8")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        case .fireplace:
+            return LinearGradient(
+                colors: [Color(hex: "F83600"), Color(hex: "FE8C00")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .snowfall:
+            return LinearGradient(
+                colors: [Color(hex: "E6DADA"), Color(hex: "274046")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        case .cityNight:
+            return LinearGradient(
+                colors: [Color(hex: "0F0C29"), Color(hex: "302B63"), Color(hex: "24243E")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        case .galaxySpace:
+            return LinearGradient(
+                colors: [Color(hex: "000428"), Color(hex: "004E92")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         }
     }
     
     var textColor: Color {
         switch self {
-        case .paper, .fog, .lavender, .mint:
+        case .paper, .fog, .lavender, .mint, .cloudySky:
             return .black
-        case .sunset, .night, .ocean, .forest:
+        case .sunset, .night, .ocean, .forest, .rainForest,
+             .northernLights, .oceanWaves, .fireplace, .snowfall,
+             .cityNight, .galaxySpace:
             return .white
         }
     }

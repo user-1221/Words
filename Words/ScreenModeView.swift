@@ -21,9 +21,8 @@ struct ScreenModeView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // User's background
-                background.gradient
-                    .ignoresSafeArea()
+                // User's background (now supports video)
+                PersistentVideoBackgroundView(backgroundType: background)
                 
                 VStack(spacing: 0) {
                     if !isActive {
@@ -269,8 +268,8 @@ struct EmptyScreenModeView: View {
     
     var body: some View {
         ZStack {
-            background.gradient
-                .ignoresSafeArea()
+            // Keep showing the video background even when empty
+            PersistentVideoBackgroundView(backgroundType: background)
             
             VStack(spacing: 20) {
                 Image(systemName: "tv.slash")

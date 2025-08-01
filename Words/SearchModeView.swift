@@ -20,9 +20,8 @@ struct SearchModeView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // User's background
-                background.gradient
-                    .ignoresSafeArea()
+                // User's background (now supports video)
+                PersistentVideoBackgroundView(backgroundType: background)
                 
                 ZStack(alignment: .top) {
                     // Main content

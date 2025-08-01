@@ -24,9 +24,8 @@ struct CreatePostView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // User's background
-                background.gradient
-                    .ignoresSafeArea()
+                // User's background (now supports video)
+                PersistentVideoBackgroundView(backgroundType: background)
                 
                 VStack(spacing: 0) {
                     // Content Input
@@ -264,8 +263,7 @@ struct PreviewPostView: View {
     
     var body: some View {
         ZStack {
-            background.gradient
-                .ignoresSafeArea()
+            PersistentVideoBackgroundView(backgroundType: background)
             
             VStack {
                 HStack {
