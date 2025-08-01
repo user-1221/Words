@@ -6,77 +6,181 @@ struct ProfileView: View {
     
     var body: some View {
         NavigationView {
-            List {
-                Section {
-                    NavigationLink(destination: AppreciationInboxView()) {
-                        HStack {
-                            Image(systemName: "heart.fill")
-                                .foregroundColor(.pink)
-                                .frame(width: 30)
-                            
-                            Text("Appreciation Inbox")
-                            
-                            Spacer()
-                            
-                            if dataController.unreadAppreciationCount > 0 {
-                                Text("\(dataController.unreadAppreciationCount)")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(Color.blue)
-                                    .cornerRadius(12)
+            ZStack {
+                // User's background
+                dataController.userPreferences.selectedBackground.gradient
+                    .ignoresSafeArea()
+                
+                List {
+                    Section {
+                        NavigationLink(destination: AppreciationInboxView()) {
+                            HStack {
+                                Image(systemName: "heart.fill")
+                                    .foregroundColor(.pink)
+                                    .frame(width: 30)
+                                
+                                Text("Appreciation Inbox")
+                                
+                                Spacer()
+                                
+                                if dataController.unreadAppreciationCount > 0 {
+                                    Text("\(dataController.unreadAppreciationCount)")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 2)
+                                        .background(Color.blue)
+                                        .cornerRadius(12)
+                                }
+                            }
+                        }
+                        
+                        NavigationLink(destination: MyWordsView()) {
+                            HStack {
+                                Image(systemName: "doc.text.fill")
+                                    .foregroundColor(.blue)
+                                    .frame(width: 30)
+                                
+                                Text("My Words")
+                                
+                                Spacer()
+                                
+                                Text("\(dataController.getMyPosts().count)")
+                                    .foregroundColor(.secondary)
                             }
                         }
                     }
+                    .listRowBackground(Color.white.opacity(0.8))
                     
-                    NavigationLink(destination: MyWordsView()) {
-                        HStack {
-                            Image(systemName: "doc.text.fill")
-                                .foregroundColor(.blue)
-                                .frame(width: 30)
-                            
-                            Text("My Words")
-                            
-                            Spacer()
-                            
-                            Text("\(dataController.getMyPosts().count)")
-                                .foregroundColor(.secondary)
+                    Section("Settings") {
+                        NavigationLink(destination: BackgroundSettingsView()) {
+                            HStack {
+                                Image(systemName: "paintbrush.fill")
+                                    .foregroundColor(.purple)
+                                    .frame(width: 30)
+                                
+                                Text("Background Theme")
+                                
+                                Spacer()
+                                
+                                Text(dataController.userPreferences.selectedBackground.rawValue)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        NavigationLink(destination: SettingsView()) {
+                            HStack {
+                                Image(systemName: "gear")
+                                    .foregroundColor(.gray)
+                                    .frame(width: 30)
+                                
+                                Text("App Settings")
+                            }
                         }
                     }
-                }
-                
-                Section("Settings") {
-                    NavigationLink(destination: SettingsView()) {
+                    .listRowBackground(Color.white.opacity(0.8))
+                    
+                    Section("About") {
                         HStack {
-                            Image(systemName: "gear")
+                            Image(systemName: "info.circle")
                                 .foregroundColor(.gray)
                                 .frame(width: 30)
                             
-                            Text("App Settings")
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Words")
+                                    .font(.system(size: 16, weight: .medium))
+                                Text("A space for reflection and resonance")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                            }
                         }
+                    }
+                    .listRowBackground(Color.white.opacity(0.8))
+                }
+                .scrollContentBackground(.hidden)
+                .navigationTitle("Profile")
+                .navigationBarTitleDisplayMode(.large)
+            }
+        }
+    }
+}
+
+// MARK: - Background Settings View
+struct BackgroundSettingsView: View {
+    @EnvironmentObject var dataController: DataController
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        ZStack {
+            dataController.userPreferences.selectedBackground.gradient
+                .ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("Choose Your Background")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(dataController.userPreferences.selectedBackground.textColor)
+                        .padding(.top, 20)
+                    
+                    Text("This background will be applied to all screens")
+                        .font(.system(size: 16))
+                        .foregroundColor(dataController.userPreferences.selectedBackground.textColor.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                    
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 20) {
+                        ForEach(BackgroundType.allCases, id: \.self) { background in
+                            BackgroundSelectionCard(
+                                background: background,
+                                isSelected: dataController.userPreferences.selectedBackground == background
+                            ) {
+                                withAnimation(.spring()) {
+                                    dataController.updateBackground(background)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+        .navigationTitle("Background Theme")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Background Selection Card
+struct BackgroundSelectionCard: View {
+    let background: BackgroundType
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                ZStack {
+                    background.gradient
+                        .frame(height: 120)
+                        .cornerRadius(12)
+                    
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.blue, lineWidth: 3)
+                        
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundColor(.blue)
+                            .background(Circle().fill(Color.white))
                     }
                 }
                 
-                Section("About") {
-                    HStack {
-                        Image(systemName: "info.circle")
-                            .foregroundColor(.gray)
-                            .frame(width: 30)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Words")
-                                .font(.system(size: 16, weight: .medium))
-                            Text("A space for reflection and resonance")
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
+                Text(background.rawValue)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.primary)
             }
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.large)
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -89,17 +193,22 @@ struct MyWordsView: View {
     }
     
     var body: some View {
-        VStack {
-            if myPosts.isEmpty {
-                EmptyMyWordsView()
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 20) {
-                        ForEach(myPosts) { post in
-                            MyWordCard(post: post)
+        ZStack {
+            dataController.userPreferences.selectedBackground.gradient
+                .ignoresSafeArea()
+            
+            VStack {
+                if myPosts.isEmpty {
+                    EmptyMyWordsView()
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 20) {
+                            ForEach(myPosts) { post in
+                                MyWordCard(post: post)
+                            }
                         }
+                        .padding()
                     }
-                    .padding()
                 }
             }
         }
@@ -110,19 +219,25 @@ struct MyWordsView: View {
 
 // MARK: - Empty My Words View
 struct EmptyMyWordsView: View {
+    @EnvironmentObject var dataController: DataController
+    
+    var background: BackgroundType {
+        dataController.userPreferences.selectedBackground
+    }
+    
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "square.and.pencil")
                 .font(.system(size: 80))
-                .foregroundColor(.gray.opacity(0.3))
+                .foregroundColor(background.textColor.opacity(0.3))
             
             Text("You haven't shared any words yet")
                 .font(.system(size: 24, weight: .light))
-                .foregroundColor(.secondary)
+                .foregroundColor(background.textColor.opacity(0.8))
             
             Text("When you create a post,\nit will appear here")
                 .font(.system(size: 16))
-                .foregroundColor(.secondary)
+                .foregroundColor(background.textColor.opacity(0.6))
                 .multilineTextAlignment(.center)
         }
         .padding(40)
@@ -176,7 +291,7 @@ struct MyWordCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(post.backgroundType.gradient.opacity(0.3))
+        .background(Color.white.opacity(0.8))
         .cornerRadius(12)
         .onTapGesture {
             showingFullPost = true
@@ -192,17 +307,22 @@ struct AppreciationInboxView: View {
     @EnvironmentObject var dataController: DataController
     
     var body: some View {
-        VStack {
-            if dataController.myAppreciations.isEmpty {
-                EmptyAppreciationView()
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(dataController.myAppreciations) { appreciation in
-                            AppreciationCard(appreciation: appreciation)
+        ZStack {
+            dataController.userPreferences.selectedBackground.gradient
+                .ignoresSafeArea()
+            
+            VStack {
+                if dataController.myAppreciations.isEmpty {
+                    EmptyAppreciationView()
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(dataController.myAppreciations) { appreciation in
+                                AppreciationCard(appreciation: appreciation)
+                            }
                         }
+                        .padding()
                     }
-                    .padding()
                 }
             }
         }
@@ -223,19 +343,25 @@ struct AppreciationInboxView: View {
 
 // MARK: - Empty Appreciation View
 struct EmptyAppreciationView: View {
+    @EnvironmentObject var dataController: DataController
+    
+    var background: BackgroundType {
+        dataController.userPreferences.selectedBackground
+    }
+    
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "heart")
                 .font(.system(size: 80))
-                .foregroundColor(.gray.opacity(0.3))
+                .foregroundColor(background.textColor.opacity(0.3))
             
             Text("No appreciations yet")
                 .font(.system(size: 24, weight: .light))
-                .foregroundColor(.secondary)
+                .foregroundColor(background.textColor.opacity(0.8))
             
             Text("When someone appreciates your words,\ntheir messages will appear here")
                 .font(.system(size: 16))
-                .foregroundColor(.secondary)
+                .foregroundColor(background.textColor.opacity(0.6))
                 .multilineTextAlignment(.center)
         }
         .padding(40)
@@ -278,7 +404,7 @@ struct AppreciationCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(appreciation.isRead ? Color(UIColor.systemGray6) : Color.blue.opacity(0.1))
+        .background(appreciation.isRead ? Color.white.opacity(0.7) : Color.blue.opacity(0.2))
         .cornerRadius(12)
         .onTapGesture {
             if !appreciation.isRead, let appreciationId = appreciation.id {
@@ -306,71 +432,79 @@ struct SendAppreciationView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                // Post preview
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Appreciating:")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
-                    Text(post.title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .padding(.horizontal)
-                    
-                    Text(post.content.first ?? "")
-                        .font(.system(size: 14))
-                        .lineLimit(3)
-                        .padding()
-                        .background(post.backgroundType.gradient.opacity(0.3))
-                        .cornerRadius(8)
-                }
+            ZStack {
+                dataController.userPreferences.selectedBackground.gradient
+                    .ignoresSafeArea()
                 
-                // Templates
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Quick Messages:")
-                        .font(.system(size: 16, weight: .medium))
+                VStack(spacing: 20) {
+                    // Post preview
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Appreciating:")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(dataController.userPreferences.selectedBackground.textColor.opacity(0.8))
+                        
+                        Text(post.title)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(dataController.userPreferences.selectedBackground.textColor)
+                            .padding(.horizontal)
+                        
+                        Text(post.content.first ?? "")
+                            .font(.system(size: 14))
+                            .lineLimit(3)
+                            .padding()
+                            .background(Color.black.opacity(0.1))
+                            .cornerRadius(8)
+                    }
                     
-                    ForEach(templates, id: \.self) { template in
-                        Button(action: {
-                            message = template
-                            selectedTemplate = template
-                        }) {
-                            Text(template)
-                                .foregroundColor(.primary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding()
-                                .background(selectedTemplate == template ? Color.blue.opacity(0.2) : Color(UIColor.systemGray6))
-                                .cornerRadius(8)
+                    // Templates
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Quick Messages:")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(dataController.userPreferences.selectedBackground.textColor)
+                        
+                        ForEach(templates, id: \.self) { template in
+                            Button(action: {
+                                message = template
+                                selectedTemplate = template
+                            }) {
+                                Text(template)
+                                    .foregroundColor(dataController.userPreferences.selectedBackground.textColor)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding()
+                                    .background(selectedTemplate == template ? Color.blue.opacity(0.3) : Color.white.opacity(0.8))
+                                    .cornerRadius(8)
+                            }
                         }
                     }
-                }
-                
-                // Custom message
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Or write your own:")
-                        .font(.system(size: 16, weight: .medium))
                     
-                    TextEditor(text: $message)
-                        .frame(minHeight: 100)
-                        .padding()
-                        .background(Color(UIColor.systemGray6))
-                        .cornerRadius(8)
+                    // Custom message
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Or write your own:")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(dataController.userPreferences.selectedBackground.textColor)
+                        
+                        TextEditor(text: $message)
+                            .frame(minHeight: 100)
+                            .padding()
+                            .background(Color.white.opacity(0.8))
+                            .cornerRadius(8)
+                    }
+                    
+                    Spacer()
+                    
+                    // Send button
+                    Button(action: sendAppreciation) {
+                        Text("Send Appreciation")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray : Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                
-                Spacer()
-                
-                // Send button
-                Button(action: sendAppreciation) {
-                    Text("Send Appreciation")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray : Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-                .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .padding()
             }
-            .padding()
             .navigationTitle("Send Appreciation")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -391,44 +525,44 @@ struct SendAppreciationView: View {
 
 // MARK: - Settings View
 struct SettingsView: View {
+    @EnvironmentObject var dataController: DataController
+    
     var body: some View {
-        List {
-            Section("Display") {
-                HStack {
-                    Image(systemName: "paintbrush")
-                        .foregroundColor(.blue)
-                        .frame(width: 30)
-                    Text("Background Theme")
-                    Spacer()
-                    Text("Coming Soon")
-                        .foregroundColor(.secondary)
-                }
-                
-                HStack {
-                    Image(systemName: "speaker.wave.2")
-                        .foregroundColor(.green)
-                        .frame(width: 30)
-                    Text("Background Music")
-                    Spacer()
-                    Text("Coming Soon")
-                        .foregroundColor(.secondary)
-                }
-            }
+        ZStack {
+            dataController.userPreferences.selectedBackground.gradient
+                .ignoresSafeArea()
             
-            Section("About") {
-                HStack {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(.gray)
-                        .frame(width: 30)
-                    VStack(alignment: .leading) {
-                        Text("Words v1.0")
-                            .font(.system(size: 16, weight: .medium))
-                        Text("A mindful space for sharing thoughts")
-                            .font(.system(size: 14))
+            List {
+                Section("Display") {
+                    HStack {
+                        Image(systemName: "speaker.wave.2")
+                            .foregroundColor(.green)
+                            .frame(width: 30)
+                        Text("Background Music")
+                        Spacer()
+                        Text("Coming Soon")
                             .foregroundColor(.secondary)
                     }
                 }
+                .listRowBackground(Color.white.opacity(0.8))
+                
+                Section("About") {
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.gray)
+                            .frame(width: 30)
+                        VStack(alignment: .leading) {
+                            Text("Words v1.0")
+                                .font(.system(size: 16, weight: .medium))
+                            Text("A mindful space for sharing thoughts")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .listRowBackground(Color.white.opacity(0.8))
             }
+            .scrollContentBackground(.hidden)
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)

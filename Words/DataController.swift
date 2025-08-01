@@ -11,6 +11,7 @@ class DataController: ObservableObject {
     @Published var unreadAppreciationCount: Int = 0
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var userPreferences = UserPreferences()
     
     private let db = Firestore.firestore()
     private var postsListener: ListenerRegistration?
@@ -20,6 +21,7 @@ class DataController: ObservableObject {
     
     init() {
         setupAuthListener()
+        loadUserPreferences()
     }
     
     deinit {
@@ -29,6 +31,25 @@ class DataController: ObservableObject {
         if let authListener = authStateListener {
             Auth.auth().removeStateDidChangeListener(authListener)
         }
+    }
+    
+    // MARK: - User Preferences
+    func loadUserPreferences() {
+        if let data = UserDefaults.standard.data(forKey: "userPreferences"),
+           let preferences = try? JSONDecoder().decode(UserPreferences.self, from: data) {
+            self.userPreferences = preferences
+        }
+    }
+    
+    func saveUserPreferences() {
+        if let data = try? JSONEncoder().encode(userPreferences) {
+            UserDefaults.standard.set(data, forKey: "userPreferences")
+        }
+    }
+    
+    func updateBackground(_ background: BackgroundType) {
+        userPreferences.selectedBackground = background
+        saveUserPreferences()
     }
     
     // MARK: - Authentication
@@ -154,7 +175,7 @@ class DataController: ObservableObject {
     }
     
     // MARK: - Post Operations
-    func createPost(title: String, content: [String], backgroundType: WordPost.BackgroundType, moods: [Mood], fontSize: CGFloat) {
+    func createPost(title: String, content: [String], moods: [Mood], fontSize: CGFloat) {
         guard let userId = currentUserId else {
             errorMessage = "User not authenticated"
             return
@@ -165,7 +186,6 @@ class DataController: ObservableObject {
         let postData: [String: Any] = [
             "title": title,
             "content": content,
-            "backgroundType": backgroundType.rawValue,
             "moods": moods.map { $0.rawValue },
             "fontSize": fontSize,
             "createdAt": Timestamp(date: Date()),

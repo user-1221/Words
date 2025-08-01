@@ -10,192 +10,201 @@ struct ScreenModeView: View {
     @State private var currentPostIndex = 0
     @State private var timer: Timer?
     
+    var background: BackgroundType {
+        dataController.userPreferences.selectedBackground
+    }
+    
     var filteredPosts: [WordPost] {
         dataController.getPostsByMoods(selectedMoods)
     }
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                if !isActive {
-                    // Settings View
-                    ScrollView {
-                        VStack(spacing: 24) {
-                            // Instructions
-                            VStack(spacing: 8) {
-                                Image(systemName: "tv")
-                                    .font(.system(size: 50))
-                                    .foregroundColor(.blue)
-                                
-                                Text("Screen Mode")
-                                    .font(.system(size: 28, weight: .semibold))
-                                
-                                Text("Display words ambiently while you work, study, or relax")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 40)
-                            }
-                            .padding(.top, 40)
-                            
-                            // Mood Filter
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Select Moods")
-                                    .font(.system(size: 20, weight: .medium))
-                                
-                                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                                    ForEach(Mood.allCases, id: \.self) { mood in
-                                        ScreenMoodChip(
-                                            mood: mood,
-                                            isSelected: selectedMoods.contains(mood)
-                                        ) {
-                                            if selectedMoods.contains(mood) {
-                                                selectedMoods.remove(mood)
-                                            } else {
-                                                selectedMoods.insert(mood)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                            
-                            // Settings
-                            VStack(spacing: 20) {
-                                // Scroll Speed
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Transition Speed: \(Int(scrollSpeed))s")
-                                        .font(.system(size: 16, weight: .medium))
+            ZStack {
+                // User's background
+                background.gradient
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    if !isActive {
+                        // Settings View
+                        ScrollView {
+                            VStack(spacing: 24) {
+                                // Instructions
+                                VStack(spacing: 8) {
+                                    Image(systemName: "tv")
+                                        .font(.system(size: 50))
+                                        .foregroundColor(background.textColor.opacity(0.8))
                                     
-                                    Slider(value: $scrollSpeed, in: 3...15, step: 1)
-                                        .accentColor(.blue)
-                                }
-                                
-                                // Font Size
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Font Size: \(Int(fontSize))")
-                                        .font(.system(size: 16, weight: .medium))
+                                    Text("Screen Mode")
+                                        .font(.system(size: 28, weight: .semibold))
+                                        .foregroundColor(background.textColor)
                                     
-                                    Slider(value: $fontSize, in: 18...36, step: 2)
-                                        .accentColor(.blue)
-                                }
-                            }
-                            .padding(.horizontal)
-                            
-                            // Start Button
-                            Button(action: startScreenMode) {
-                                Text("Start Screen Mode")
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(filteredPosts.isEmpty ? Color.gray : Color.blue)
-                                    .cornerRadius(12)
-                            }
-                            .disabled(filteredPosts.isEmpty)
-                            .padding(.horizontal)
-                            
-                            if filteredPosts.isEmpty {
-                                Text("Select at least one mood to start")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding(.bottom, 40)
-                    }
-                } else {
-                    // Active Screen Mode
-                    if filteredPosts.isEmpty {
-                        EmptyScreenModeView()
-                    } else {
-                        ZStack {
-                            // Current post display
-                            if currentPostIndex < filteredPosts.count {
-                                let post = filteredPosts[currentPostIndex]
-                                
-                                post.backgroundType.gradient
-                                    .ignoresSafeArea()
-                                
-                                VStack {
-                                    Spacer()
-                                    
-                                    // Title
-                                    Text(post.title)
-                                        .font(.system(size: fontSize + 4, weight: .medium, design: .serif))
-                                        .foregroundColor(post.backgroundType.textColor)
+                                    Text("Display words ambiently while you work, study, or relax")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(background.textColor.opacity(0.8))
+                                        .multilineTextAlignment(.center)
                                         .padding(.horizontal, 40)
-                                        .padding(.bottom, 20)
+                                }
+                                .padding(.top, 40)
+                                
+                                // Mood Filter
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Select Moods")
+                                        .font(.system(size: 20, weight: .medium))
+                                        .foregroundColor(background.textColor)
                                     
-                                    // Content with page handling
-                                    if post.content.count > 1 {
-                                        TabView {
-                                            ForEach(Array(post.content.enumerated()), id: \.offset) { index, page in
-                                                Text(page)
-                                                    .font(.system(size: fontSize, weight: .light, design: .serif))
-                                                    .foregroundColor(post.backgroundType.textColor)
-                                                    .multilineTextAlignment(.center)
-                                                    .padding(.horizontal, 40)
-                                                    .tag(index)
+                                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                                        ForEach(Mood.allCases, id: \.self) { mood in
+                                            ScreenMoodChip(
+                                                mood: mood,
+                                                isSelected: selectedMoods.contains(mood)
+                                            ) {
+                                                if selectedMoods.contains(mood) {
+                                                    selectedMoods.remove(mood)
+                                                } else {
+                                                    selectedMoods.insert(mood)
+                                                }
                                             }
                                         }
-                                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                                        .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
-                                    } else {
-                                        Text(post.content.first ?? "")
-                                            .font(.system(size: fontSize, weight: .light, design: .serif))
-                                            .foregroundColor(post.backgroundType.textColor)
-                                            .multilineTextAlignment(.center)
+                                    }
+                                }
+                                .padding(.horizontal)
+                                
+                                // Settings
+                                VStack(spacing: 20) {
+                                    // Scroll Speed
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("Transition Speed: \(Int(scrollSpeed))s")
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(background.textColor)
+                                        
+                                        Slider(value: $scrollSpeed, in: 3...15, step: 1)
+                                            .accentColor(background.textColor)
+                                    }
+                                    
+                                    // Font Size
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("Font Size: \(Int(fontSize))")
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(background.textColor)
+                                        
+                                        Slider(value: $fontSize, in: 18...36, step: 2)
+                                            .accentColor(background.textColor)
+                                    }
+                                }
+                                .padding(.horizontal)
+                                
+                                // Start Button
+                                Button(action: startScreenMode) {
+                                    Text("Start Screen Mode")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(filteredPosts.isEmpty ? Color.gray : Color.blue)
+                                        .cornerRadius(12)
+                                }
+                                .disabled(filteredPosts.isEmpty)
+                                .padding(.horizontal)
+                                
+                                if filteredPosts.isEmpty {
+                                    Text("Select at least one mood to start")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(background.textColor.opacity(0.6))
+                                }
+                            }
+                            .padding(.bottom, 40)
+                        }
+                    } else {
+                        // Active Screen Mode
+                        if filteredPosts.isEmpty {
+                            EmptyScreenModeView()
+                        } else {
+                            ZStack {
+                                // Current post display with user background
+                                if currentPostIndex < filteredPosts.count {
+                                    let post = filteredPosts[currentPostIndex]
+                                    
+                                    VStack {
+                                        Spacer()
+                                        
+                                        // Title
+                                        Text(post.title)
+                                            .font(.system(size: fontSize + 4, weight: .medium, design: .serif))
+                                            .foregroundColor(background.textColor)
                                             .padding(.horizontal, 40)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    // Mood indicators
-                                    HStack(spacing: 12) {
-                                        ForEach(post.moods, id: \.self) { mood in
-                                            Text("\(mood.icon) \(mood.rawValue)")
-                                                .font(.system(size: 14))
-                                                .padding(.horizontal, 12)
-                                                .padding(.vertical, 6)
-                                                .background(Color.black.opacity(0.2))
-                                                .foregroundColor(post.backgroundType.textColor)
-                                                .cornerRadius(15)
+                                            .padding(.bottom, 20)
+                                        
+                                        // Content with page handling
+                                        if post.content.count > 1 {
+                                            TabView {
+                                                ForEach(Array(post.content.enumerated()), id: \.offset) { index, page in
+                                                    Text(page)
+                                                        .font(.system(size: fontSize, weight: .light, design: .serif))
+                                                        .foregroundColor(background.textColor)
+                                                        .multilineTextAlignment(.center)
+                                                        .padding(.horizontal, 40)
+                                                        .tag(index)
+                                                }
+                                            }
+                                            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                                            .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
+                                        } else {
+                                            Text(post.content.first ?? "")
+                                                .font(.system(size: fontSize, weight: .light, design: .serif))
+                                                .foregroundColor(background.textColor)
+                                                .multilineTextAlignment(.center)
+                                                .padding(.horizontal, 40)
                                         }
+                                        
+                                        Spacer()
+                                        
+                                        // Mood indicators
+                                        HStack(spacing: 12) {
+                                            ForEach(post.moods, id: \.self) { mood in
+                                                Text("\(mood.icon) \(mood.rawValue)")
+                                                    .font(.system(size: 14))
+                                                    .padding(.horizontal, 12)
+                                                    .padding(.vertical, 6)
+                                                    .background(Color.black.opacity(0.2))
+                                                    .foregroundColor(background.textColor)
+                                                    .cornerRadius(15)
+                                            }
+                                        }
+                                        .padding(.bottom, 100)
                                     }
-                                    .padding(.bottom, 100)
+                                    .transition(.opacity)
                                 }
-                                .transition(.opacity)
-                            }
-                            
-                            // Exit button
-                            VStack {
-                                HStack {
+                                
+                                // Exit button
+                                VStack {
+                                    HStack {
+                                        Spacer()
+                                        Button(action: stopScreenMode) {
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 20))
+                                                .foregroundColor(.white)
+                                                .frame(width: 40, height: 40)
+                                                .background(Color.black.opacity(0.3))
+                                                .cornerRadius(20)
+                                        }
+                                        .padding()
+                                    }
                                     Spacer()
-                                    Button(action: stopScreenMode) {
-                                        Image(systemName: "xmark")
-                                            .font(.system(size: 20))
-                                            .foregroundColor(.white)
-                                            .frame(width: 40, height: 40)
-                                            .background(Color.black.opacity(0.3))
-                                            .cornerRadius(20)
-                                    }
-                                    .padding()
                                 }
-                                Spacer()
                             }
-                        }
-                        .onAppear {
-                            startTimer()
-                        }
-                        .onDisappear {
-                            stopTimer()
+                            .onAppear {
+                                startTimer()
+                            }
+                            .onDisappear {
+                                stopTimer()
+                            }
                         }
                     }
                 }
             }
-            .navigationBarHidden(isActive)
-            .navigationTitle(isActive ? "" : "Screen Mode")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarHidden(true)
         }
     }
     
@@ -243,7 +252,7 @@ struct ScreenMoodChip: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
-            .background(isSelected ? Color.blue : Color(UIColor.systemGray5))
+            .background(isSelected ? Color.blue : Color.white.opacity(0.8))
             .foregroundColor(isSelected ? .white : .primary)
             .cornerRadius(8)
         }
@@ -252,19 +261,25 @@ struct ScreenMoodChip: View {
 
 // MARK: - Empty Screen Mode View
 struct EmptyScreenModeView: View {
+    @EnvironmentObject var dataController: DataController
+    
+    var background: BackgroundType {
+        dataController.userPreferences.selectedBackground
+    }
+    
     var body: some View {
         ZStack {
-            Color.black
+            background.gradient
                 .ignoresSafeArea()
             
             VStack(spacing: 20) {
                 Image(systemName: "tv.slash")
                     .font(.system(size: 60))
-                    .foregroundColor(.white.opacity(0.3))
+                    .foregroundColor(background.textColor.opacity(0.3))
                 
                 Text("No words available")
                     .font(.system(size: 24, weight: .light))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundColor(background.textColor.opacity(0.5))
             }
         }
     }

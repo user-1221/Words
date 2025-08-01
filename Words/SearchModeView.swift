@@ -9,101 +9,111 @@ struct SearchModeView: View {
     @State private var selectedPost: WordPost?
     @State private var showingFilters = false
     
+    var background: BackgroundType {
+        dataController.userPreferences.selectedBackground
+    }
+    
     var filteredPosts: [WordPost] {
         dataController.getPostsByMoods(selectedMoods)
     }
     
     var body: some View {
         NavigationView {
-            ZStack(alignment: .top) {
-                // Main content
-                VStack(spacing: 0) {
-                    // Top bar with search icon
-                    HStack {
-                        Spacer()
-                        Button(action: {
-                            withAnimation(.spring()) {
-                                showingFilters.toggle()
-                            }
-                        }) {
-                            Image(systemName: showingFilters ? "xmark" : "magnifyingglass")
-                                .font(.system(size: 22))
-                                .foregroundColor(.primary)
-                                .frame(width: 44, height: 44)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                    
-                    // Posts Grid using WaterfallGrid
-                    if filteredPosts.isEmpty {
-                        EmptySearchView()
-                    } else {
-                        ScrollView {
-                            WaterfallGrid(filteredPosts) { post in
-                                InstagramStyleCard(post: post) {
-                                    selectedPost = post
-                                    showingFullPost = true
-                                }
-                            }
-                            .gridStyle(
-                                columns: 2,
-                                spacing: 12,
-                                animation: .none
-                            )
-                            .padding(.horizontal, 12)
-                        }
-                    }
-                }
+            ZStack {
+                // User's background
+                background.gradient
+                    .ignoresSafeArea()
                 
-                // Collapsible Filter Bar
-                if showingFilters {
+                ZStack(alignment: .top) {
+                    // Main content
                     VStack(spacing: 0) {
-                        Color.clear.frame(height: 60) // Space for top bar
+                        // Top bar with search icon
+                        HStack {
+                            Spacer()
+                            Button(action: {
+                                withAnimation(.spring()) {
+                                    showingFilters.toggle()
+                                }
+                            }) {
+                                Image(systemName: showingFilters ? "xmark" : "magnifyingglass")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(background.textColor)
+                                    .frame(width: 44, height: 44)
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
                         
-                        VStack(spacing: 12) {
-                            Text("Filter by Mood")
-                                .font(.system(size: 16, weight: .semibold))
+                        // Posts Grid using WaterfallGrid
+                        if filteredPosts.isEmpty {
+                            EmptySearchView()
+                        } else {
+                            ScrollView {
+                                WaterfallGrid(filteredPosts) { post in
+                                    InstagramStyleCard(post: post) {
+                                        selectedPost = post
+                                        showingFullPost = true
+                                    }
+                                }
+                                .gridStyle(
+                                    columns: 2,
+                                    spacing: 12,
+                                    animation: .none
+                                )
+                                .padding(.horizontal, 12)
+                            }
+                        }
+                    }
+                    
+                    // Collapsible Filter Bar
+                    if showingFilters {
+                        VStack(spacing: 0) {
+                            Color.clear.frame(height: 60) // Space for top bar
                             
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
-                                ForEach(Mood.allCases, id: \.self) { mood in
-                                    MoodChip(
-                                        mood: mood,
-                                        isSelected: selectedMoods.contains(mood)
-                                    ) {
-                                        if selectedMoods.contains(mood) {
-                                            selectedMoods.remove(mood)
-                                        } else {
-                                            selectedMoods.insert(mood)
+                            VStack(spacing: 12) {
+                                Text("Filter by Mood")
+                                    .font(.system(size: 16, weight: .semibold))
+                                
+                                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                                    ForEach(Mood.allCases, id: \.self) { mood in
+                                        MoodChip(
+                                            mood: mood,
+                                            isSelected: selectedMoods.contains(mood)
+                                        ) {
+                                            if selectedMoods.contains(mood) {
+                                                selectedMoods.remove(mood)
+                                            } else {
+                                                selectedMoods.insert(mood)
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            
-                            if !selectedMoods.isEmpty {
-                                Button("Clear All") {
-                                    selectedMoods.removeAll()
+                                
+                                if !selectedMoods.isEmpty {
+                                    Button("Clear All") {
+                                        selectedMoods.removeAll()
+                                    }
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.blue)
                                 }
-                                .font(.system(size: 14))
-                                .foregroundColor(.blue)
                             }
+                            .padding()
+                            .background(Color.white.opacity(0.95))
+                            .cornerRadius(20)
+                            .shadow(radius: 10)
+                            .padding(.horizontal)
+                            .transition(.move(edge: .top).combined(with: .opacity))
                         }
-                        .padding()
-                        .background(Color(UIColor.systemBackground))
-                        .cornerRadius(20)
-                        .shadow(radius: 10)
-                        .padding(.horizontal)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
-                    .background(
-                        Color.black.opacity(0.3)
-                            .ignoresSafeArea()
-                            .onTapGesture {
-                                withAnimation(.spring()) {
-                                    showingFilters = false
+                        .background(
+                            Color.black.opacity(0.3)
+                                .ignoresSafeArea()
+                                .onTapGesture {
+                                    withAnimation(.spring()) {
+                                        showingFilters = false
+                                    }
                                 }
-                            }
-                    )
+                        )
+                    }
                 }
             }
             .navigationBarHidden(true)
@@ -116,7 +126,7 @@ struct SearchModeView: View {
     }
 }
 
-// MARK: - Instagram Style Card
+// MARK: - Instagram Style Card (Unchanged)
 struct InstagramStyleCard: View {
     let post: WordPost
     let onTap: () -> Void
@@ -192,22 +202,27 @@ struct MoodChip: View {
 
 // MARK: - Empty Search View
 struct EmptySearchView: View {
+    @EnvironmentObject var dataController: DataController
+    
+    var background: BackgroundType {
+        dataController.userPreferences.selectedBackground
+    }
+    
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 60))
-                .foregroundColor(.gray.opacity(0.3))
+                .foregroundColor(background.textColor.opacity(0.3))
             Text("No words found")
                 .font(.system(size: 24, weight: .light))
-                .foregroundColor(.secondary)
+                .foregroundColor(background.textColor.opacity(0.8))
             Text("Try adjusting your mood filters\nor wait for new posts")
                 .font(.system(size: 16))
-                .foregroundColor(.secondary)
+                .foregroundColor(background.textColor.opacity(0.6))
                 .multilineTextAlignment(.center)
             Spacer()
         }
         .padding()
     }
 }
-

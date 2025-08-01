@@ -59,6 +59,10 @@ struct HomeView: View {
     @State private var showingSendAppreciation = false
     @State private var selectedPost: WordPost?
     
+    var userBackground: BackgroundType {
+        dataController.userPreferences.selectedBackground
+    }
+    
     var body: some View {
         GeometryReader { geometry in
             if dataController.isLoading {
@@ -71,6 +75,7 @@ struct HomeView: View {
                         ForEach(dataController.posts) { post in
                             FullScreenPostView(
                                 post: post,
+                                background: userBackground,
                                 onAppreciate: {
                                     selectedPost = post
                                     showingSendAppreciation = true
@@ -95,6 +100,7 @@ struct HomeView: View {
 // MARK: - Full Screen Post View (Reels-style)
 struct FullScreenPostView: View {
     let post: WordPost
+    let background: BackgroundType
     let onAppreciate: () -> Void
     @EnvironmentObject var dataController: DataController
     
@@ -105,8 +111,8 @@ struct FullScreenPostView: View {
     
     var body: some View {
         ZStack {
-            // Background
-            post.backgroundType.gradient
+            // User's selected background
+            background.gradient
                 .ignoresSafeArea()
             
             // Content
@@ -125,7 +131,7 @@ struct FullScreenPostView: View {
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
                                 .background(Color.black.opacity(0.2))
-                                .foregroundColor(post.backgroundType.textColor)
+                                .foregroundColor(background.textColor)
                                 .cornerRadius(15)
                             }
                         }
@@ -136,7 +142,7 @@ struct FullScreenPostView: View {
                     // Title display
                     Text(post.title)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(post.backgroundType.textColor.opacity(0.8))
+                        .foregroundColor(background.textColor.opacity(0.8))
                 }
                 .padding(.horizontal)
                 .padding(.top, 60)
@@ -150,7 +156,7 @@ struct FullScreenPostView: View {
                             ScrollView {
                                 Text(page)
                                     .font(.system(size: post.fontSize, weight: .light, design: .serif))
-                                    .foregroundColor(post.backgroundType.textColor)
+                                    .foregroundColor(background.textColor)
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal, 30)
                             }
@@ -163,7 +169,7 @@ struct FullScreenPostView: View {
                     ScrollView {
                         Text(post.content.first ?? "")
                             .font(.system(size: post.fontSize, weight: .light, design: .serif))
-                            .foregroundColor(post.backgroundType.textColor)
+                            .foregroundColor(background.textColor)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 30)
                     }
@@ -178,7 +184,7 @@ struct FullScreenPostView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(post.createdAt.formatted(date: .abbreviated, time: .omitted))
                             .font(.system(size: 12))
-                            .foregroundColor(post.backgroundType.textColor.opacity(0.7))
+                            .foregroundColor(background.textColor.opacity(0.7))
                     }
                     
                     Spacer()
@@ -229,7 +235,7 @@ struct FullScreenPostView: View {
                 HStack(spacing: 4) {
                     ForEach(0..<3) { _ in
                         Rectangle()
-                            .fill(post.backgroundType.textColor.opacity(0.3))
+                            .fill(background.textColor.opacity(0.3))
                             .frame(width: 20, height: 1)
                     }
                 }
@@ -241,23 +247,21 @@ struct FullScreenPostView: View {
 
 // MARK: - Loading View
 struct LoadingView: View {
+    @EnvironmentObject var dataController: DataController
+    
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "E0E0E0"), Color(hex: "F5F5F5")],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            dataController.userPreferences.selectedBackground.gradient
+                .ignoresSafeArea()
             
             VStack(spacing: 20) {
                 ProgressView()
                     .scaleEffect(1.5)
-                    .tint(.gray)
+                    .tint(dataController.userPreferences.selectedBackground.textColor.opacity(0.6))
                 
                 Text("Loading words...")
                     .font(.system(size: 18, weight: .light))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(dataController.userPreferences.selectedBackground.textColor.opacity(0.8))
             }
         }
     }
@@ -265,29 +269,31 @@ struct LoadingView: View {
 
 // MARK: - Empty Home View
 struct EmptyHomeView: View {
+    @EnvironmentObject var dataController: DataController
+    
+    var background: BackgroundType {
+        dataController.userPreferences.selectedBackground
+    }
+    
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "F5F5DC"), Color(hex: "E8E8D5")],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            background.gradient
+                .ignoresSafeArea()
             
             VStack(spacing: 30) {
                 Spacer()
                 
                 Image(systemName: "text.quote")
                     .font(.system(size: 80))
-                    .foregroundColor(.black.opacity(0.2))
+                    .foregroundColor(background.textColor.opacity(0.2))
                 
                 Text("No words yet")
                     .font(.system(size: 36, weight: .thin, design: .serif))
-                    .foregroundColor(.black.opacity(0.8))
+                    .foregroundColor(background.textColor.opacity(0.8))
                 
                 Text("Be the first to share\nyour thoughts")
                     .font(.system(size: 18, weight: .light))
-                    .foregroundColor(.black.opacity(0.6))
+                    .foregroundColor(background.textColor.opacity(0.6))
                     .multilineTextAlignment(.center)
                 
                 Spacer()
@@ -295,11 +301,11 @@ struct EmptyHomeView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 20))
-                        .foregroundColor(.black.opacity(0.4))
+                        .foregroundColor(background.textColor.opacity(0.4))
                     
                     Text("Swipe up when words appear")
                         .font(.system(size: 14))
-                        .foregroundColor(.black.opacity(0.4))
+                        .foregroundColor(background.textColor.opacity(0.4))
                 }
                 .padding(.bottom, 50)
             }
@@ -315,9 +321,13 @@ struct FullPostView: View {
     @EnvironmentObject var dataController: DataController
     @State private var showingSendAppreciation = false
     
+    var background: BackgroundType {
+        dataController.userPreferences.selectedBackground
+    }
+    
     var body: some View {
         ZStack {
-            post.backgroundType.gradient
+            background.gradient
                 .ignoresSafeArea()
             
             VStack {
@@ -326,14 +336,14 @@ struct FullPostView: View {
                     Button("Done") {
                         dismiss()
                     }
-                    .foregroundColor(post.backgroundType.textColor)
+                    .foregroundColor(background.textColor)
                     .padding()
                 }
                 
                 // Title
                 Text(post.title)
                     .font(.system(size: 24, weight: .semibold, design: .serif))
-                    .foregroundColor(post.backgroundType.textColor)
+                    .foregroundColor(background.textColor)
                     .padding(.horizontal)
                 
                 Spacer()
@@ -345,7 +355,7 @@ struct FullPostView: View {
                             ScrollView {
                                 Text(page)
                                     .font(.system(size: post.fontSize, weight: .light, design: .serif))
-                                    .foregroundColor(post.backgroundType.textColor)
+                                    .foregroundColor(background.textColor)
                                     .multilineTextAlignment(.center)
                                     .padding(40)
                             }
@@ -357,7 +367,7 @@ struct FullPostView: View {
                     ScrollView {
                         Text(post.content.first ?? "")
                             .font(.system(size: post.fontSize, weight: .light, design: .serif))
-                            .foregroundColor(post.backgroundType.textColor)
+                            .foregroundColor(background.textColor)
                             .multilineTextAlignment(.center)
                             .padding(40)
                     }

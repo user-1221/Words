@@ -2,78 +2,95 @@ import Foundation
 import FirebaseFirestore
 import SwiftUI
 
-// MARK: - Word Post Model
+// MARK: - User Preferences Model
+struct UserPreferences: Codable {
+    var selectedBackground: BackgroundType = .paper
+}
+
+// MARK: - Background Type (Now for user preferences)
+enum BackgroundType: String, CaseIterable, Codable {
+    case paper = "Paper"
+    case fog = "Fog"
+    case sunset = "Sunset"
+    case night = "Night"
+    case ocean = "Ocean"
+    case forest = "Forest"
+    case lavender = "Lavender"
+    case mint = "Mint"
+    
+    var gradient: LinearGradient {
+        switch self {
+        case .paper:
+            return LinearGradient(
+                colors: [Color(hex: "F5F5DC"), Color(hex: "E8E8D5")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .fog:
+            return LinearGradient(
+                colors: [Color(hex: "E0E0E0"), Color(hex: "F5F5F5")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        case .sunset:
+            return LinearGradient(
+                colors: [Color(hex: "FF6B6B"), Color(hex: "FFE66D")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .night:
+            return LinearGradient(
+                colors: [Color(hex: "2C3E50"), Color(hex: "34495E")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        case .ocean:
+            return LinearGradient(
+                colors: [Color(hex: "4CA1AF"), Color(hex: "2C3E50")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .forest:
+            return LinearGradient(
+                colors: [Color(hex: "134E5E"), Color(hex: "71B280")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .lavender:
+            return LinearGradient(
+                colors: [Color(hex: "E8D5E8"), Color(hex: "C8A8D8")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        case .mint:
+            return LinearGradient(
+                colors: [Color(hex: "A8E6CF"), Color(hex: "7FCDBB")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+    
+    var textColor: Color {
+        switch self {
+        case .paper, .fog, .lavender, .mint:
+            return .black
+        case .sunset, .night, .ocean, .forest:
+            return .white
+        }
+    }
+}
+
+// MARK: - Word Post Model (Simplified - no background)
 struct WordPost: Identifiable, Codable {
     @DocumentID var id: String?
     let title: String
     let content: [String] // Array for multi-page support
-    let backgroundType: BackgroundType
     let moods: [Mood]
     let fontSize: CGFloat
     let createdAt: Date
     let authorId: String
     var appreciationCount: Int = 0
-    
-    enum BackgroundType: String, CaseIterable, Codable {
-        case paper = "Paper"
-        case fog = "Fog"
-        case sunset = "Sunset"
-        case night = "Night"
-        case ocean = "Ocean"
-        case forest = "Forest"
-        
-        var gradient: LinearGradient {
-            switch self {
-            case .paper:
-                return LinearGradient(
-                    colors: [Color(hex: "F5F5DC"), Color(hex: "E8E8D5")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            case .fog:
-                return LinearGradient(
-                    colors: [Color(hex: "E0E0E0"), Color(hex: "F5F5F5")],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            case .sunset:
-                return LinearGradient(
-                    colors: [Color(hex: "FF6B6B"), Color(hex: "FFE66D")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            case .night:
-                return LinearGradient(
-                    colors: [Color(hex: "2C3E50"), Color(hex: "34495E")],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            case .ocean:
-                return LinearGradient(
-                    colors: [Color(hex: "4CA1AF"), Color(hex: "2C3E50")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            case .forest:
-                return LinearGradient(
-                    colors: [Color(hex: "134E5E"), Color(hex: "71B280")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-        }
-        
-        var textColor: Color {
-            switch self {
-            case .paper, .fog:
-                return .black
-            case .sunset:
-                return .white
-            case .night, .ocean, .forest:
-                return .white
-            }
-        }
-    }
 }
 
 // MARK: - Mood Enum
