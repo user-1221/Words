@@ -25,6 +25,11 @@ class DataController: ObservableObject {
     }
     
     deinit {
+        removeAllListeners()
+    }
+    
+    // MARK: - Cleanup
+    private func removeAllListeners() {
         postsListener?.remove()
         appreciationsListener?.remove()
         sentAppreciationsListener?.remove()
@@ -68,6 +73,8 @@ class DataController: ObservableObject {
     
     func signInAnonymously() {
         isLoading = true
+        errorMessage = nil
+        
         Auth.auth().signInAnonymously { [weak self] result, error in
             DispatchQueue.main.async {
                 self?.isLoading = false
@@ -93,8 +100,11 @@ class DataController: ObservableObject {
     }
     
     private func setupPostsListener() {
+        postsListener?.remove()
+        
         postsListener = db.collection("posts")
             .order(by: "createdAt", descending: true)
+            .limit(to: 50) // Limit for performance
             .addSnapshotListener { [weak self] snapshot, error in
                 DispatchQueue.main.async {
                     if let error = error {
@@ -109,7 +119,7 @@ class DataController: ObservableObject {
                             post.id = document.documentID
                             return post
                         } catch {
-                            print("Error decoding post: \(error)")
+                            print("Error decoding post \(document.documentID): \(error)")
                             return nil
                         }
                     } ?? []
@@ -120,9 +130,12 @@ class DataController: ObservableObject {
     private func setupAppreciationsListener() {
         guard let userId = currentUserId else { return }
         
+        appreciationsListener?.remove()
+        
         appreciationsListener = db.collection("appreciations")
             .whereField("receiverId", isEqualTo: userId)
             .order(by: "sentAt", descending: true)
+            .limit(to: 100)
             .addSnapshotListener { [weak self] snapshot, error in
                 DispatchQueue.main.async {
                     if let error = error {
@@ -151,8 +164,11 @@ class DataController: ObservableObject {
     private func setupSentAppreciationsListener() {
         guard let userId = currentUserId else { return }
         
+        sentAppreciationsListener?.remove()
+        
         sentAppreciationsListener = db.collection("appreciations")
             .whereField("senderId", isEqualTo: userId)
+            .limit(to: 50)
             .addSnapshotListener { [weak self] snapshot, error in
                 DispatchQueue.main.async {
                     if let error = error {
@@ -181,11 +197,19 @@ class DataController: ObservableObject {
             return
         }
         
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !content.isEmpty,
+              !moods.isEmpty else {
+            errorMessage = "Please fill all required fields"
+            return
+        }
+        
         isLoading = true
+        errorMessage = nil
         
         let postData: [String: Any] = [
-            "title": title,
-            "content": content,
+            "title": title.trimmingCharacters(in: .whitespacesAndNewlines),
+            "content": content.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
             "moods": moods.map { $0.rawValue },
             "fontSize": fontSize,
             "createdAt": Timestamp(date: Date()),
@@ -199,6 +223,9 @@ class DataController: ObservableObject {
                 if let error = error {
                     self?.errorMessage = "Error creating post: \(error.localizedDescription)"
                     print("Error creating post: \(error)")
+                } else {
+                    // Post created successfully
+                    self?.errorMessage = nil
                 }
             }
         }
@@ -212,33 +239,53 @@ class DataController: ObservableObject {
             return
         }
         
+        // Check if already appreciated
+        if hasUserAppreciatedPost(postId: postId) {
+            errorMessage = "You have already appreciated this post"
+            return
+        }
+        
+        let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedMessage.isEmpty else {
+            errorMessage = "Please write a message"
+            return
+        }
+        
         // Get first 50 characters of first page for display
         let postSnippet = String(post.content.first?.prefix(50) ?? "")
         
         let appreciationData: [String: Any] = [
             "postId": postId,
             "postContent": postSnippet,
-            "message": message,
+            "message": trimmedMessage,
             "sentAt": Timestamp(date: Date()),
             "senderId": senderId,
             "receiverId": post.authorId,
             "isRead": false
         ]
         
+        isLoading = true
+        
         // Add appreciation
         db.collection("appreciations").addDocument(data: appreciationData) { [weak self] error in
-            if let error = error {
-                DispatchQueue.main.async {
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                
+                if let error = error {
                     self?.errorMessage = "Error sending appreciation: \(error.localizedDescription)"
+                    print("Error sending appreciation: \(error)")
+                    return
                 }
-                print("Error sending appreciation: \(error)")
-                return
+                
+                // Increment appreciation count on post
+                self?.db.collection("posts").document(postId).updateData([
+                    "appreciationCount": FieldValue.increment(Int64(1))
+                ]) { error in
+                    if let error = error {
+                        print("Error updating appreciation count: \(error)")
+                    }
+                }
             }
-            
-            // Increment appreciation count on post
-            self?.db.collection("posts").document(postId).updateData([
-                "appreciationCount": FieldValue.increment(Int64(1))
-            ])
         }
     }
     
@@ -287,7 +334,6 @@ class DataController: ObservableObject {
     func hasUserAppreciatedPost(postId: String) -> Bool {
         guard let userId = currentUserId else { return false }
         
-        // Check if user has already sent an appreciation for this post
         return sentAppreciations.contains { appreciation in
             appreciation.postId == postId && appreciation.senderId == userId
         }

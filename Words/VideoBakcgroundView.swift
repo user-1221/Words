@@ -1,175 +1,33 @@
 import SwiftUI
 import AVKit
-import Combine
-
-// MARK: - Video Manager Singleton
-class VideoBackgroundManager: ObservableObject {
-    static let shared = VideoBackgroundManager()
-    
-    @Published var currentPlayer: AVPlayer?
-    @Published var currentBackgroundType: BackgroundType?
-    @Published var isLoading = false
-    @Published var hasError = false
-    @Published var errorMessage: String?
-    
-    private var looper: AVPlayerLooper?
-    private var cancellables = Set<AnyCancellable>()
-    private var playerObserver: Any?
-    
-    private init() {}
-    
-    func loadVideo(for backgroundType: BackgroundType) {
-        // Don't reload if it's the same video
-        if currentBackgroundType == backgroundType, currentPlayer != nil {
-            return
-        }
-        
-        // Clean up previous player
-        cleanupCurrentPlayer()
-        
-        guard backgroundType.isVideo,
-              let urlString = backgroundType.videoURL,
-              let url = URL(string: urlString) else {
-            currentBackgroundType = backgroundType
-            return
-        }
-        
-        isLoading = true
-        hasError = false
-        errorMessage = nil
-        
-        print("Loading video from URL: \(urlString)")
-        
-        // Create player item
-        let playerItem = AVPlayerItem(url: url)
-        
-        // Create queue player for looping
-        let queuePlayer = AVQueuePlayer()
-        queuePlayer.isMuted = true
-        queuePlayer.allowsExternalPlayback = false
-        queuePlayer.preventsDisplaySleepDuringVideoPlayback = false
-        
-        // Set up looping
-        looper = AVPlayerLooper(player: queuePlayer, templateItem: playerItem)
-        
-        // Monitor loading status
-        playerItem.publisher(for: \.status)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] status in
-                switch status {
-                case .readyToPlay:
-                    print("Video ready to play")
-                    self?.isLoading = false
-                    self?.currentPlayer = queuePlayer
-                    self?.currentBackgroundType = backgroundType
-                    queuePlayer.play()
-                case .failed:
-                    print("Video failed to load: \(playerItem.error?.localizedDescription ?? "Unknown error")")
-                    self?.isLoading = false
-                    self?.hasError = true
-                    self?.errorMessage = playerItem.error?.localizedDescription
-                case .unknown:
-                    print("Video status unknown")
-                @unknown default:
-                    break
-                }
-            }
-            .store(in: &cancellables)
-        
-        // Add periodic time observer to ensure playback
-        playerObserver = queuePlayer.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 1, preferredTimescale: 1),
-            queue: .main
-        ) { [weak self] _ in
-            if queuePlayer.rate == 0 && queuePlayer.error == nil {
-                queuePlayer.play()
-            }
-        }
-    }
-    
-    func pauseVideo() {
-        currentPlayer?.pause()
-    }
-    
-    func resumeVideo() {
-        currentPlayer?.play()
-    }
-    
-    func cleanupCurrentPlayer() {
-        if let observer = playerObserver {
-            currentPlayer?.removeTimeObserver(observer)
-        }
-        currentPlayer?.pause()
-        currentPlayer = nil
-        looper = nil
-        playerObserver = nil
-    }
-}
 
 // MARK: - Persistent Video Background View
 struct PersistentVideoBackgroundView: View {
     let backgroundType: BackgroundType
     @StateObject private var videoManager = VideoBackgroundManager.shared
-    @State private var hasAttemptedLoad = false
+    @State private var shouldLoadVideo = false
     
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 if backgroundType.isVideo {
                     if let player = videoManager.currentPlayer,
-                       videoManager.currentBackgroundType == backgroundType {
+                       videoManager.currentBackgroundType == backgroundType,
+                       !videoManager.hasError {
                         // Use existing player
                         VideoPlayerView(player: player, geometry: geometry)
                             .ignoresSafeArea()
-                            .onAppear {
-                                videoManager.resumeVideo()
-                            }
-                            .onDisappear {
-                                videoManager.pauseVideo()
-                            }
-                    } else if videoManager.isLoading && !hasAttemptedLoad {
-                        // Loading state with gradient background
-                        ZStack {
-                            backgroundType.gradient
-                                .ignoresSafeArea()
-                            
-                            VStack(spacing: 16) {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: backgroundType.textColor))
-                                    .scaleEffect(1.5)
-                                
-                                Text("Loading video background...")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(backgroundType.textColor.opacity(0.8))
-                            }
-                        }
-                        .onAppear {
-                            hasAttemptedLoad = true
-                        }
-                    } else if videoManager.hasError {
-                        // Error state - show gradient fallback
-                        backgroundType.gradient
-                            .ignoresSafeArea()
-                            .overlay(
-                                VStack {
-                                    Spacer()
-                                    HStack {
-                                        Image(systemName: "exclamationmark.triangle")
-                                        Text("Using fallback background")
-                                    }
-                                    .font(.system(size: 12))
-                                    .foregroundColor(backgroundType.textColor.opacity(0.6))
-                                    .padding()
-                                }
-                            )
+                            .transition(.opacity)
+                    } else if videoManager.isLoading && videoManager.currentBackgroundType == backgroundType {
+                        // Loading state
+                        LoadingVideoView(backgroundType: backgroundType)
                     } else {
                         // Load new video or show gradient
                         backgroundType.gradient
                             .ignoresSafeArea()
                             .onAppear {
-                                if !hasAttemptedLoad {
+                                if shouldLoadVideo {
                                     videoManager.loadVideo(for: backgroundType)
-                                    hasAttemptedLoad = true
                                 }
                             }
                     }
@@ -182,49 +40,105 @@ struct PersistentVideoBackgroundView: View {
                             if videoManager.currentBackgroundType?.isVideo == true {
                                 videoManager.cleanupCurrentPlayer()
                             }
-                            videoManager.currentBackgroundType = backgroundType
                         }
                 }
             }
         }
+        .onAppear {
+            shouldLoadVideo = true
+            if backgroundType.isVideo {
+                videoManager.loadVideo(for: backgroundType)
+            }
+        }
         .onChange(of: backgroundType) { oldValue, newValue in
-            hasAttemptedLoad = false
             if newValue.isVideo {
                 videoManager.loadVideo(for: newValue)
+            } else if oldValue.isVideo {
+                videoManager.cleanupCurrentPlayer()
             }
         }
     }
 }
 
-// MARK: - Custom Video Player View with Aspect Fill
+// MARK: - Loading Video View
+struct LoadingVideoView: View {
+    let backgroundType: BackgroundType
+    
+    var body: some View {
+        ZStack {
+            backgroundType.gradient
+                .ignoresSafeArea()
+            
+            VStack(spacing: 16) {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: backgroundType.textColor))
+                    .scaleEffect(1.5)
+                
+                Text("Loading video background...")
+                    .font(.system(size: 14))
+                    .foregroundColor(backgroundType.textColor.opacity(0.8))
+            }
+            .padding()
+            .background(Color.black.opacity(0.3))
+            .cornerRadius(12)
+        }
+    }
+}
+
+// MARK: - Custom Video Player View
 struct VideoPlayerView: UIViewRepresentable {
     let player: AVPlayer
     let geometry: GeometryProxy
     
-    func makeUIView(context: Context) -> UIView {
+    func makeUIView(context: Context) -> PlayerUIView {
         let view = PlayerUIView()
-        
-        let playerLayer = AVPlayerLayer(player: player)
-        playerLayer.videoGravity = .resizeAspectFill
-        playerLayer.frame = CGRect(origin: .zero, size: geometry.size)
-        
-        view.layer.addSublayer(playerLayer)
-        view.playerLayer = playerLayer
-        
-        // Ensure player is playing
-        player.play()
-        
+        view.player = player
         return view
     }
     
-    func updateUIView(_ uiView: UIView, context: Context) {
-        if let playerView = uiView as? PlayerUIView {
-            playerView.playerLayer?.frame = CGRect(origin: .zero, size: geometry.size)
-        }
+    func updateUIView(_ uiView: PlayerUIView, context: Context) {
+        uiView.updatePlayerLayer(size: geometry.size)
     }
     
     class PlayerUIView: UIView {
-        var playerLayer: AVPlayerLayer?
+        var player: AVPlayer? {
+            didSet {
+                setupPlayerLayer()
+            }
+        }
+        
+        private var playerLayer: AVPlayerLayer?
+        
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            backgroundColor = .black
+        }
+        
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+        
+        private func setupPlayerLayer() {
+            playerLayer?.removeFromSuperlayer()
+            
+            guard let player = player else { return }
+            
+            let newPlayerLayer = AVPlayerLayer(player: player)
+            newPlayerLayer.videoGravity = .resizeAspectFill
+            newPlayerLayer.frame = bounds
+            
+            layer.addSublayer(newPlayerLayer)
+            playerLayer = newPlayerLayer
+            
+            player.play()
+        }
+        
+        func updatePlayerLayer(size: CGSize) {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            playerLayer?.frame = CGRect(origin: .zero, size: size)
+            CATransaction.commit()
+        }
         
         override func layoutSubviews() {
             super.layoutSubviews()
@@ -233,27 +147,88 @@ struct VideoPlayerView: UIViewRepresentable {
     }
 }
 
-// MARK: - Scene Phase Handler
-struct VideoBackgroundSceneModifier: ViewModifier {
-    @Environment(\.scenePhase) var scenePhase
+// MARK: - Background Selection Card
+struct BackgroundSelectionCard: View {
+    let background: BackgroundType
+    let isSelected: Bool
+    let isLoading: Bool
+    let action: () -> Void
     
-    func body(content: Content) -> some View {
-        content
-            .onChange(of: scenePhase) { oldPhase, newPhase in
-                switch newPhase {
-                case .active:
-                    VideoBackgroundManager.shared.resumeVideo()
-                case .inactive, .background:
-                    VideoBackgroundManager.shared.pauseVideo()
-                @unknown default:
-                    break
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                ZStack {
+                    if background.isVideo {
+                        // Show thumbnail for video backgrounds
+                        AsyncImage(url: URL(string: background.thumbnailURL ?? "")) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            case .failure(_):
+                                // Fallback gradient on thumbnail load failure
+                                background.gradient
+                            case .empty:
+                                // Loading state
+                                ZStack {
+                                    background.gradient
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                }
+                            @unknown default:
+                                background.gradient
+                            }
+                        }
+                        .frame(height: 120)
+                        .clipped()
+                        .cornerRadius(12)
+                        
+                        // Video indicator overlay
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Image(systemName: "video.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.white)
+                                    .padding(8)
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(8)
+                                    .padding(8)
+                            }
+                            Spacer()
+                        }
+                    } else {
+                        // Regular gradient preview
+                        background.gradient
+                            .frame(height: 120)
+                            .cornerRadius(12)
+                    }
+                    
+                    if isLoading {
+                        ZStack {
+                            Color.black.opacity(0.6)
+                                .cornerRadius(12)
+                            
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        }
+                    } else if isSelected {
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.blue, lineWidth: 3)
+                        
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundColor(.blue)
+                            .background(Circle().fill(Color.white))
+                    }
                 }
+                
+                Text(background.rawValue)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.primary)
             }
-    }
-}
-
-extension View {
-    func handleVideoBackgroundLifecycle() -> some View {
-        modifier(VideoBackgroundSceneModifier())
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }

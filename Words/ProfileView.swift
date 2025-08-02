@@ -220,6 +220,7 @@ struct BackgroundSettingsView: View {
     }
 }
 
+/*
 // MARK: - Background Selection Card
 struct BackgroundSelectionCard: View {
     let background: BackgroundType
@@ -291,7 +292,7 @@ struct BackgroundSelectionCard: View {
         .buttonStyle(PlainButtonStyle())
     }
 }
-
+*/
 // MARK: - My Words View (Updated)
 struct MyWordsView: View {
     @EnvironmentObject var dataController: DataController
@@ -403,9 +404,11 @@ struct MyWordCard: View {
         .onTapGesture {
             showingFullPost = true
         }
+        /*
         .sheet(isPresented: $showingFullPost) {
             FullPostView(post: post, showAppreciationButton: false)
         }
+        */
     }
 }
 

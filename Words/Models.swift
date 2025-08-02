@@ -5,13 +5,13 @@ import SwiftUI
 // MARK: - User Preferences Model
 struct UserPreferences: Codable {
     var selectedBackground: BackgroundType = .paper
-    var backgroundVideoURL: String?
-    var backgroundThumbnailURL: String?
+    var backgroundMusicEnabled: Bool = false
+    var backgroundMusicVolume: Double = 0.5
 }
 
-// MARK: - Background Type (Now supports videos)
+// MARK: - Background Type
 enum BackgroundType: String, CaseIterable, Codable {
-    // Original gradient backgrounds
+    // Gradient backgrounds
     case paper = "Paper"
     case fog = "Fog"
     case sunset = "Sunset"
@@ -39,16 +39,6 @@ enum BackgroundType: String, CaseIterable, Codable {
         default:
             return false
         }
-    }
-    
-    // Cloudinary video URLs
-    var videoURL: String? {
-        return CloudinaryConfig.videoURL(for: self)
-    }
-    
-    // Thumbnail URLs for video previews
-    var thumbnailURL: String? {
-        return CloudinaryConfig.thumbnailURL(for: self)
     }
     
     var gradient: LinearGradient {
@@ -101,7 +91,7 @@ enum BackgroundType: String, CaseIterable, Codable {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-        // Fallback gradients for video backgrounds
+        // Video background fallbacks
         case .rainForest:
             return LinearGradient(
                 colors: [Color(hex: "0F2027"), Color(hex: "203A43"), Color(hex: "2C5364")],
@@ -165,7 +155,7 @@ enum BackgroundType: String, CaseIterable, Codable {
     }
 }
 
-// MARK: - Word Post Model (Simplified - no background)
+// MARK: - Word Post Model
 struct WordPost: Identifiable, Codable {
     @DocumentID var id: String?
     let title: String
