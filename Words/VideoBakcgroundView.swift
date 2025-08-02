@@ -10,9 +10,11 @@ class VideoBackgroundManager: ObservableObject {
     @Published var currentBackgroundType: BackgroundType?
     @Published var isLoading = false
     @Published var hasError = false
+    @Published var errorMessage: String?
     
     private var looper: AVPlayerLooper?
     private var cancellables = Set<AnyCancellable>()
+    private var playerObserver: Any?
     
     private init() {}
     
@@ -34,16 +36,19 @@ class VideoBackgroundManager: ObservableObject {
         
         isLoading = true
         hasError = false
+        errorMessage = nil
+        
+        print("Loading video from URL: \(urlString)")
         
         // Create player item
         let playerItem = AVPlayerItem(url: url)
-
-        // Create queue player
+        
+        // Create queue player for looping
         let queuePlayer = AVQueuePlayer()
         queuePlayer.isMuted = true
         queuePlayer.allowsExternalPlayback = false
         queuePlayer.preventsDisplaySleepDuringVideoPlayback = false
-
+        
         // Set up looping
         looper = AVPlayerLooper(player: queuePlayer, templateItem: playerItem)
         
@@ -53,18 +58,33 @@ class VideoBackgroundManager: ObservableObject {
             .sink { [weak self] status in
                 switch status {
                 case .readyToPlay:
+                    print("Video ready to play")
                     self?.isLoading = false
                     self?.currentPlayer = queuePlayer
                     self?.currentBackgroundType = backgroundType
                     queuePlayer.play()
                 case .failed:
+                    print("Video failed to load: \(playerItem.error?.localizedDescription ?? "Unknown error")")
                     self?.isLoading = false
                     self?.hasError = true
-                default:
+                    self?.errorMessage = playerItem.error?.localizedDescription
+                case .unknown:
+                    print("Video status unknown")
+                @unknown default:
                     break
                 }
             }
             .store(in: &cancellables)
+        
+        // Add periodic time observer to ensure playback
+        playerObserver = queuePlayer.addPeriodicTimeObserver(
+            forInterval: CMTime(seconds: 1, preferredTimescale: 1),
+            queue: .main
+        ) { [weak self] _ in
+            if queuePlayer.rate == 0 && queuePlayer.error == nil {
+                queuePlayer.play()
+            }
+        }
     }
     
     func pauseVideo() {
@@ -76,9 +96,13 @@ class VideoBackgroundManager: ObservableObject {
     }
     
     func cleanupCurrentPlayer() {
+        if let observer = playerObserver {
+            currentPlayer?.removeTimeObserver(observer)
+        }
         currentPlayer?.pause()
         currentPlayer = nil
         looper = nil
+        playerObserver = nil
     }
 }
 
@@ -86,6 +110,7 @@ class VideoBackgroundManager: ObservableObject {
 struct PersistentVideoBackgroundView: View {
     let backgroundType: BackgroundType
     @StateObject private var videoManager = VideoBackgroundManager.shared
+    @State private var hasAttemptedLoad = false
     
     var body: some View {
         GeometryReader { geometry in
@@ -99,25 +124,53 @@ struct PersistentVideoBackgroundView: View {
                             .onAppear {
                                 videoManager.resumeVideo()
                             }
-                    } else if videoManager.isLoading {
-                        // Loading state
+                            .onDisappear {
+                                videoManager.pauseVideo()
+                            }
+                    } else if videoManager.isLoading && !hasAttemptedLoad {
+                        // Loading state with gradient background
                         ZStack {
                             backgroundType.gradient
                                 .ignoresSafeArea()
                             
-                            VStack {
-                                ProgressView("Loading background...")
+                            VStack(spacing: 16) {
+                                ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: backgroundType.textColor))
-                                    .foregroundColor(backgroundType.textColor)
-                                    .scaleEffect(1.2)
+                                    .scaleEffect(1.5)
+                                
+                                Text("Loading video background...")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(backgroundType.textColor.opacity(0.8))
                             }
                         }
+                        .onAppear {
+                            hasAttemptedLoad = true
+                        }
+                    } else if videoManager.hasError {
+                        // Error state - show gradient fallback
+                        backgroundType.gradient
+                            .ignoresSafeArea()
+                            .overlay(
+                                VStack {
+                                    Spacer()
+                                    HStack {
+                                        Image(systemName: "exclamationmark.triangle")
+                                        Text("Using fallback background")
+                                    }
+                                    .font(.system(size: 12))
+                                    .foregroundColor(backgroundType.textColor.opacity(0.6))
+                                    .padding()
+                                }
+                            )
                     } else {
                         // Load new video or show gradient
                         backgroundType.gradient
                             .ignoresSafeArea()
                             .onAppear {
-                                videoManager.loadVideo(for: backgroundType)
+                                if !hasAttemptedLoad {
+                                    videoManager.loadVideo(for: backgroundType)
+                                    hasAttemptedLoad = true
+                                }
                             }
                     }
                 } else {
@@ -132,6 +185,12 @@ struct PersistentVideoBackgroundView: View {
                             videoManager.currentBackgroundType = backgroundType
                         }
                 }
+            }
+        }
+        .onChange(of: backgroundType) { oldValue, newValue in
+            hasAttemptedLoad = false
+            if newValue.isVideo {
+                videoManager.loadVideo(for: newValue)
             }
         }
     }
@@ -151,6 +210,9 @@ struct VideoPlayerView: UIViewRepresentable {
         
         view.layer.addSublayer(playerLayer)
         view.playerLayer = playerLayer
+        
+        // Ensure player is playing
+        player.play()
         
         return view
     }
@@ -177,8 +239,8 @@ struct VideoBackgroundSceneModifier: ViewModifier {
     
     func body(content: Content) -> some View {
         content
-            .onChange(of: scenePhase) {
-                switch scenePhase {
+            .onChange(of: scenePhase) { oldPhase, newPhase in
+                switch newPhase {
                 case .active:
                     VideoBackgroundManager.shared.resumeVideo()
                 case .inactive, .background:

@@ -59,6 +59,7 @@ struct ContentView: View {
                 Text(errorMessage)
             }
         }
+        .handleVideoBackgroundLifecycle()
     }
 }
 
@@ -193,11 +194,13 @@ struct FullScreenPostContent: View {
                                 .foregroundColor(background.textColor)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 30)
+                                .padding(.vertical, 20)
                         }
                         .tag(index)
                     }
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+                .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
                 .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
             } else {
                 ScrollView {
@@ -206,6 +209,7 @@ struct FullScreenPostContent: View {
                         .foregroundColor(background.textColor)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 30)
+                        .padding(.vertical, 20)
                 }
                 .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
             }
@@ -344,6 +348,7 @@ struct FullPostView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var dataController: DataController
     @State private var showingSendAppreciation = false
+    @State private var currentPageIndex = 0
     
     var background: BackgroundType {
         dataController.userPreferences.selectedBackground
@@ -373,7 +378,7 @@ struct FullPostView: View {
                 
                 // Multi-page content
                 if post.content.count > 1 {
-                    TabView {
+                    TabView(selection: $currentPageIndex) {
                         ForEach(Array(post.content.enumerated()), id: \.offset) { index, page in
                             ScrollView {
                                 Text(page)
@@ -386,6 +391,7 @@ struct FullPostView: View {
                         }
                     }
                     .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+                    .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
                 } else {
                     ScrollView {
                         Text(post.content.first ?? "")

@@ -17,6 +17,16 @@ struct WordsApp: App {
     
     init() {
         FirebaseApp.configure()
+        
+        // Preload video backgrounds in the background
+        DispatchQueue.global(qos: .background).async {
+            // Load the default background first if it's a video
+            if let defaultBackground = UserDefaults.standard.data(forKey: "userPreferences"),
+               let preferences = try? JSONDecoder().decode(UserPreferences.self, from: defaultBackground),
+               preferences.selectedBackground.isVideo {
+                VideoBackgroundManager.shared.loadVideo(for: preferences.selectedBackground)
+            }
+        }
     }
     
     var body: some Scene {
