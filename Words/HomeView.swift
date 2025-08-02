@@ -55,28 +55,43 @@ struct HomeView: View {
                         }
                     }
                     
-                    // Gesture overlay for vertical scrolling
+                    // Replace the gesture overlay section with this:
+                    // Gesture overlay for vertical scrolling only
                     Color.clear
                         .contentShape(Rectangle())
                         .gesture(
                             DragGesture()
                                 .onChanged { value in
-                                    dragOffset = value.translation.height
+                                    // Only respond to vertical drags
+                                    if abs(value.translation.height) > abs(value.translation.width) {
+                                        dragOffset = value.translation.height
+                                    }
                                 }
                                 .onEnded { value in
                                     let threshold: CGFloat = 50
                                     
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        if value.translation.height < -threshold {
-                                            // Swipe up - next post
-                                            currentIndex = min(currentIndex + 1, dataController.posts.count - 1)
-                                        } else if value.translation.height > threshold {
-                                            // Swipe down - previous post
-                                            currentIndex = max(currentIndex - 1, 0)
+                                    // Only process if it's primarily a vertical gesture
+                                    if abs(value.translation.height) > abs(value.translation.width) {
+                                        withAnimation(.easeInOut(duration: 0.3)) {
+                                            if value.translation.height < -threshold {
+                                                // Swipe up - next post
+                                                currentIndex = min(currentIndex + 1, dataController.posts.count - 1)
+                                            } else if value.translation.height > threshold {
+                                                // Swipe down - previous post
+                                                currentIndex = max(currentIndex - 1, 0)
+                                            }
+                                            dragOffset = 0
                                         }
+                                    } else {
                                         dragOffset = 0
                                     }
                                 }
+                        )
+                        // Make sure the gesture doesn't block horizontal swipes
+                        .highPriorityGesture(
+                            DragGesture()
+                                .onChanged { _ in }
+                                .onEnded { _ in }
                         )
                 }
                 .ignoresSafeArea()

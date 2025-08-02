@@ -97,8 +97,7 @@ struct ProfileView: View {
                     .listRowBackground(Color.white.opacity(0.8))
                 }
                 .scrollContentBackground(.hidden)
-                .navigationTitle("Profile")
-                .navigationBarTitleDisplayMode(.large)
+                .navigationBarHidden(true)
             }
         }
     }

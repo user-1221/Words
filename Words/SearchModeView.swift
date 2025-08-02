@@ -19,8 +19,9 @@ struct SearchModeView: View {
     
     var body: some View {
         ZStack {
-            // Background first
+            // User's background - persistent video
             PersistentVideoBackgroundView(backgroundType: background)
+                .ignoresSafeArea()
             
             // Content on top
             NavigationView {
@@ -62,8 +63,10 @@ struct SearchModeView: View {
                                 )
                                 .padding(.horizontal, 12)
                             }
+                            .background(Color.clear)
                         }
                     }
+                    .background(Color.clear)
                     
                     // Filter overlay
                     if showingFilters {

@@ -5,7 +5,7 @@ import AVKit
 struct PersistentVideoBackgroundView: View {
     let backgroundType: BackgroundType
     @StateObject private var videoManager = VideoBackgroundManager.shared
-    @State private var shouldLoadVideo = false
+    @State private var isInitialized = false
     
     var body: some View {
         GeometryReader { geometry in
@@ -14,40 +14,38 @@ struct PersistentVideoBackgroundView: View {
                     if let player = videoManager.currentPlayer,
                        videoManager.currentBackgroundType == backgroundType,
                        !videoManager.hasError {
-                        // Use existing player
                         VideoPlayerView(player: player, geometry: geometry)
                             .ignoresSafeArea()
                             .transition(.opacity)
                     } else if videoManager.isLoading && videoManager.currentBackgroundType == backgroundType {
-                        // Loading state
                         LoadingVideoView(backgroundType: backgroundType)
                     } else {
-                        // Load new video or show gradient
-                        backgroundType.gradient
-                            .ignoresSafeArea()
-                            .onAppear {
-                                if shouldLoadVideo {
-                                    videoManager.loadVideo(for: backgroundType)
-                                }
+                        // Show gradient with retry
+                        ZStack {
+                            backgroundType.gradient
+                                .ignoresSafeArea()
+                            
+                            if backgroundType.isVideo && !isInitialized {
+                                Color.clear
+                                    .onAppear {
+                                        isInitialized = true
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                            videoManager.loadVideo(for: backgroundType)
+                                        }
+                                    }
                             }
+                        }
                     }
                 } else {
                     // Regular gradient background
                     backgroundType.gradient
                         .ignoresSafeArea()
                         .onAppear {
-                            // Clear video if switching to gradient
                             if videoManager.currentBackgroundType?.isVideo == true {
                                 videoManager.cleanupCurrentPlayer()
                             }
                         }
                 }
-            }
-        }
-        .onAppear {
-            shouldLoadVideo = true
-            if backgroundType.isVideo {
-                videoManager.loadVideo(for: backgroundType)
             }
         }
         .onChange(of: backgroundType) { oldValue, newValue in
@@ -59,7 +57,6 @@ struct PersistentVideoBackgroundView: View {
         }
     }
 }
-
 // MARK: - Loading Video View
 struct LoadingVideoView: View {
     let backgroundType: BackgroundType

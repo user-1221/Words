@@ -33,10 +33,14 @@ class VideoBackgroundManager: ObservableObject {
     }
     
     // MARK: - Load Video
+    // Update the loadVideo method
     func loadVideo(for backgroundType: BackgroundType) {
+        print("🎥 Loading video for: \(backgroundType.rawValue)")
+        
         if currentBackgroundType == backgroundType,
            currentPlayer != nil,
            currentPlayer?.error == nil {
+            print("✅ Video already loaded, resuming playback")
             currentPlayer?.play()
             return
         }
@@ -44,43 +48,45 @@ class VideoBackgroundManager: ObservableObject {
         cleanupCurrentPlayer()
         
         guard backgroundType.isVideo,
-              let urlString = backgroundType.videoURL,
-              let url = URL(string: urlString) else {
+              let urlString = backgroundType.videoURL else {
+            print("❌ Not a video background or no URL")
             currentBackgroundType = backgroundType
+            return
+        }
+        
+        print("🔗 Video URL: \(urlString)")
+        
+        guard let url = URL(string: urlString) else {
+            print("❌ Invalid URL")
+            handleError(nil, backgroundType: backgroundType)
             return
         }
         
         isLoading = true
         hasError = false
         errorMessage = nil
-
-        // Dispatch async to prepare video asset
-        DispatchQueue.global(qos: .userInitiated).async {
-            let asset = AVURLAsset(url: url)
-            let playerItem = AVPlayerItem(asset: asset)
-            let queuePlayer = AVQueuePlayer()
-            
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-
-                self.currentPlayerItem = playerItem
-                self.currentPlayer = queuePlayer
-                
-                // Setup Looper
-                self.looper = AVPlayerLooper(player: queuePlayer, templateItem: playerItem)
-
-                // Setup Observers
-                self.setupPlayerObservers(for: playerItem, player: queuePlayer, backgroundType: backgroundType)
-                
-                // Assign observer player
-                self.observerPlayer = queuePlayer
-                
-                // Start playback
-                queuePlayer.play()
-            }
-        }
+        
+        // Create player item and setup
+        let playerItem = AVPlayerItem(url: url)
+        let queuePlayer = AVQueuePlayer(playerItem: playerItem)
+        
+        // Configure player
+        queuePlayer.automaticallyWaitsToMinimizeStalling = true
+        queuePlayer.isMuted = true
+        
+        self.currentPlayerItem = playerItem
+        self.currentPlayer = queuePlayer
+        self.currentBackgroundType = backgroundType
+        
+        // Setup looper before observers
+        self.looper = AVPlayerLooper(player: queuePlayer, templateItem: playerItem)
+        
+        // Setup observers
+        self.setupPlayerObservers(for: playerItem, player: queuePlayer, backgroundType: backgroundType)
+        
+        // Start loading
+        queuePlayer.play()
     }
-
     
     // MARK: - Player Observers
     private func setupPlayerObservers(for playerItem: AVPlayerItem, player: AVQueuePlayer, backgroundType: BackgroundType) {
