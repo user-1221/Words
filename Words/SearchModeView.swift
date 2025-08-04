@@ -18,75 +18,63 @@ struct SearchModeView: View {
     }
     
     var body: some View {
-        ZStack {
-            // User's background - persistent video
-            PersistentVideoBackgroundView(backgroundType: background)
-                .ignoresSafeArea()
-            
-            // Content on top
-            NavigationView {
-                ZStack(alignment: .top) {
-                    // Main content
-                    VStack(spacing: 0) {
-                        // Top bar with search icon
-                        HStack {
-                            Spacer()
-                            Button(action: {
-                                withAnimation(.spring()) {
-                                    showingFilters.toggle()
-                                }
-                            }) {
-                                Image(systemName: showingFilters ? "xmark" : "magnifyingglass")
-                                    .font(.system(size: 22))
-                                    .foregroundColor(background.textColor)
-                                    .frame(width: 44, height: 44)
+        NavigationView {
+            ZStack {
+                // Background video layer
+                PersistentVideoBackgroundView(backgroundType: background)
+                    .ignoresSafeArea()
+
+                // Main UI content
+                VStack(spacing: 0) {
+                    // Top bar with search icon
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            withAnimation(.spring()) {
+                                showingFilters.toggle()
                             }
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                        
-                        // Posts Grid
-                        if filteredPosts.isEmpty {
-                            EmptySearchView()
-                        } else {
-                            ScrollView {
-                                WaterfallGrid(filteredPosts) { post in
-                                    InstagramStyleCard(post: post) {
-                                        selectedPost = post
-                                        showingFullPost = true
-                                    }
-                                }
-                                .gridStyle(
-                                    columns: 2,
-                                    spacing: 12,
-                                    animation: .default
-                                )
-                                .padding(.horizontal, 12)
-                            }
-                            .background(Color.clear)
+                        }) {
+                            Image(systemName: showingFilters ? "xmark" : "magnifyingglass")
+                                .font(.system(size: 22))
+                                .foregroundColor(background.textColor)
+                                .frame(width: 44, height: 44)
                         }
                     }
-                    .background(Color.clear)
-                    
-                    // Filter overlay
-                    if showingFilters {
-                        filterOverlay
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                    // Posts Grid
+                    if filteredPosts.isEmpty {
+                        EmptySearchView()
+                    } else {
+                        ScrollView {
+                            WaterfallGrid(filteredPosts) { post in
+                                InstagramStyleCard(post: post) {
+                                    selectedPost = post
+                                    showingFullPost = true
+                                }
+                            }
+                            .gridStyle(
+                                columns: 2,
+                                spacing: 12,
+                                animation: .default
+                            )
+                            .padding(.horizontal, 12)
+                        }
+                        .background(Color.clear)
                     }
                 }
-                .navigationBarHidden(true)
-                .background(Color.clear)
+
+                // Filter overlay
+                if showingFilters {
+                    filterOverlay
+                }
             }
-            .navigationViewStyle(StackNavigationViewStyle())
+            .navigationBarHidden(true)
         }
-        /*
-        .sheet(isPresented: $showingFullPost) {
-            if let post = selectedPost {
-                FullPostView(post: post)
-            }
-        }
-         */
+        .navigationViewStyle(StackNavigationViewStyle())
     }
-    
+
     @ViewBuilder
     private var filterOverlay: some View {
         VStack(spacing: 0) {
@@ -143,7 +131,6 @@ struct InstagramStyleCard: View {
     let post: WordPost
     let onTap: () -> Void
     
-    // Use displayTitle instead of title
     private var cardHeight: CGFloat {
         let baseHeight: CGFloat = 140
         let variations: [CGFloat] = [0, 20, 40, 60, 80, 100]
