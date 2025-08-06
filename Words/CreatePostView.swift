@@ -7,8 +7,14 @@ struct CreatePostView: View {
     @State private var pages: [String] = [""]
     @State private var currentPageIndex = 0
     @State private var selectedMoods: Set<Mood> = []
-    @State private var fontSize: CGFloat = 20
+    @State private var selectedAlignment: TextAlignment = .center
     @State private var showingPreview = false
+    
+    // Auto font size calculation
+    private let maxCharactersPerPage = 300
+    private let baseFontSize: CGFloat = 24
+    private let minFontSize: CGFloat = 14
+    private let maxFontSize: CGFloat = 32
     
     var background: BackgroundType {
         dataController.userPreferences.selectedBackground
@@ -19,6 +25,29 @@ struct CreatePostView: View {
         pages.contains(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) &&
         !selectedMoods.isEmpty &&
         selectedMoods.count <= 3
+    }
+    
+    // Calculate optimal font size based on content
+    private func calculateOptimalFontSize(for text: String) -> CGFloat {
+        let charCount = text.count
+        
+        if charCount <= 50 {
+            return maxFontSize
+        } else if charCount <= 100 {
+            return 28
+        } else if charCount <= 200 {
+            return 20
+        } else if charCount <= 300 {
+            return 16
+        } else {
+            return minFontSize
+        }
+    }
+    
+    // Get the optimal font size for all pages
+    private var optimalFontSize: CGFloat {
+        let longestPage = pages.max { $0.count < $1.count } ?? ""
+        return calculateOptimalFontSize(for: longestPage)
     }
     
     var body: some View {
@@ -74,9 +103,17 @@ struct CreatePostView: View {
                             
                             // Text Editor for current page
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("Your Words")
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundColor(background.textColor)
+                                HStack {
+                                    Text("Your Words")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(background.textColor)
+                                    
+                                    Spacer()
+                                    
+                                    Text("\(pages[currentPageIndex].count)/\(maxCharactersPerPage)")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(pages[currentPageIndex].count > maxCharactersPerPage ? .red : background.textColor.opacity(0.7))
+                                }
                                 
                                 ZStack(alignment: .topLeading) {
                                     if pages[currentPageIndex].isEmpty {
@@ -87,26 +124,65 @@ struct CreatePostView: View {
                                     }
                                     
                                     TextEditor(text: $pages[currentPageIndex])
-                                        .font(.system(size: fontSize, weight: .light, design: .serif))
+                                        .font(.system(size: optimalFontSize, weight: .light, design: .serif))
                                         .foregroundColor(background.textColor)
+                                        .multilineTextAlignment(selectedAlignment.swiftUIAlignment)
                                         .frame(minHeight: 200)
                                         .scrollContentBackground(.hidden)
                                         .background(Color.clear)
+                                        .onChange(of: pages[currentPageIndex]) { oldValue, newValue in
+                                            // Limit characters per page
+                                            if newValue.count > maxCharactersPerPage {
+                                                pages[currentPageIndex] = String(newValue.prefix(maxCharactersPerPage))
+                                            }
+                                        }
                                 }
                                 .padding()
                                 .background(Color.white.opacity(0.8))
                                 .cornerRadius(12)
+                                
+                                // Character limit warning
+                                if pages[currentPageIndex].count > maxCharactersPerPage - 50 {
+                                    Text("Approaching character limit. Consider adding a new page.")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.orange)
+                                        .padding(.horizontal, 4)
+                                }
                             }
                             
-                            // Font Size Slider
+                            // Text Alignment Selection
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("Font Size: \(Int(fontSize))")
+                                Text("Text Alignment")
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundColor(background.textColor)
                                 
-                                Slider(value: $fontSize, in: 14...32, step: 2)
-                                    .accentColor(background.textColor)
+                                HStack(spacing: 0) {
+                                    ForEach(TextAlignment.allCases, id: \.self) { alignment in
+                                        Button(action: {
+                                            selectedAlignment = alignment
+                                        }) {
+                                            Image(systemName: alignment.icon)
+                                                .font(.system(size: 20))
+                                                .foregroundColor(selectedAlignment == alignment ? .white : background.textColor)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 12)
+                                                .background(selectedAlignment == alignment ? Color.blue : Color.clear)
+                                        }
+                                    }
+                                }
+                                .background(Color.white.opacity(0.8))
+                                .cornerRadius(8)
                             }
+                            
+                            // Auto Font Size Info
+                            HStack {
+                                Image(systemName: "textformat.size")
+                                    .foregroundColor(background.textColor.opacity(0.7))
+                                Text("Font size adjusts automatically based on content length")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(background.textColor.opacity(0.7))
+                            }
+                            .padding(.horizontal, 4)
                             
                             // Mood Selection
                             VStack(alignment: .leading, spacing: 8) {
@@ -174,7 +250,8 @@ struct CreatePostView: View {
                 title: title,
                 pages: pages.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty },
                 moods: Array(selectedMoods),
-                fontSize: fontSize
+                fontSize: optimalFontSize,
+                textAlignment: selectedAlignment
             )
         }
     }
@@ -205,7 +282,8 @@ struct CreatePostView: View {
             title: title,
             content: nonEmptyPages,
             moods: Array(selectedMoods),
-            fontSize: fontSize
+            fontSize: optimalFontSize,
+            textAlignment: selectedAlignment
         )
         
         // Reset form
@@ -213,11 +291,11 @@ struct CreatePostView: View {
         pages = [""]
         currentPageIndex = 0
         selectedMoods = []
-        fontSize = 20
+        selectedAlignment = .center
     }
 }
 
-// MARK: - Mood Selection Chip Component
+// MARK: - Mood Selection Chip Component (unchanged)
 struct MoodSelectionChip: View {
     let mood: Mood
     let isSelected: Bool
@@ -248,12 +326,13 @@ struct MoodSelectionChip: View {
     }
 }
 
-// MARK: - Preview Post View
+// MARK: - Preview Post View (Updated)
 struct PreviewPostView: View {
     let title: String
     let pages: [String]
     let moods: [Mood]
     let fontSize: CGFloat
+    let textAlignment: TextAlignment
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var dataController: DataController
     
@@ -301,7 +380,7 @@ struct PreviewPostView: View {
                                 Text(page)
                                     .font(.system(size: fontSize, weight: .light, design: .serif))
                                     .foregroundColor(background.textColor)
-                                    .multilineTextAlignment(.center)
+                                    .multilineTextAlignment(textAlignment.swiftUIAlignment)
                                     .padding(40)
                             }
                             .tag(index)
@@ -313,7 +392,7 @@ struct PreviewPostView: View {
                         Text(pages.first ?? "")
                             .font(.system(size: fontSize, weight: .light, design: .serif))
                             .foregroundColor(background.textColor)
-                            .multilineTextAlignment(.center)
+                            .multilineTextAlignment(textAlignment.swiftUIAlignment)
                             .padding(40)
                     }
                 }

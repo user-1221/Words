@@ -6,10 +6,15 @@ struct HomeView: View {
     @State private var showingSendAppreciation = false
     @State private var selectedPost: WordPost?
     @State private var currentIndex = 0
-    @State private var dragOffset: CGFloat = 0
+    @State private var currentPageIndex: [String: Int] = [:] // Track page index for each post
 
     var userBackground: BackgroundType {
         dataController.userPreferences.selectedBackground
+    }
+    
+    var currentPost: WordPost? {
+        guard currentIndex < dataController.posts.count else { return nil }
+        return dataController.posts[currentIndex]
     }
 
     var body: some View {
@@ -27,6 +32,7 @@ struct HomeView: View {
                             FullScreenPostContent(
                                 post: post,
                                 background: userBackground,
+                                currentPageIndex: binding(for: post),
                                 onAppreciate: {
                                     selectedPost = post
                                     showingSendAppreciation = true
@@ -34,6 +40,7 @@ struct HomeView: View {
                             )
                             .opacity(index == currentIndex ? 1 : 0)
                             .scaleEffect(index == currentIndex ? 1 : 0.95)
+
                             .animation(.easeInOut(duration: 0.3), value: currentIndex)
                         }
                     }
@@ -51,35 +58,14 @@ struct HomeView: View {
                             .padding(.bottom, 50)
                         }
                     }
-
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .simultaneousGesture(
-                            DragGesture()
-                                .onChanged { value in
-                                    if abs(value.translation.height) > abs(value.translation.width) {
-                                        dragOffset = value.translation.height
-                                    }
-                                }
-                                .onEnded { value in
-                                    let threshold: CGFloat = 50
-                                    if abs(value.translation.height) > abs(value.translation.width) {
-                                        withAnimation(.easeInOut(duration: 0.3)) {
-                                            if value.translation.height < -threshold {
-                                                currentIndex = min(currentIndex + 1, dataController.posts.count - 1)
-                                            } else if value.translation.height > threshold {
-                                                currentIndex = max(currentIndex - 1, 0)
-                                            }
-                                            dragOffset = 0
-                                        }
-                                    } else {
-                                        dragOffset = 0
-                                    }
-                                }
-                        )
-
                 }
                 .ignoresSafeArea()
+                .gesture(
+                    DragGesture()
+                        .onEnded { value in
+                            handleSwipe(value: value)
+                        }
+                )
             }
         }
         .sheet(isPresented: $showingSendAppreciation) {
@@ -88,15 +74,63 @@ struct HomeView: View {
             }
         }
     }
+    
+    private func binding(for post: WordPost) -> Binding<Int> {
+        let postId = post.id ?? ""
+        return Binding(
+            get: { currentPageIndex[postId] ?? 0 },
+            set: { currentPageIndex[postId] = $0 }
+        )
+    }
+    
+    private func handleSwipe(value: DragGesture.Value) {
+        let horizontalAmount = value.translation.width
+        let verticalAmount = value.translation.height
+        let threshold: CGFloat = 50
+        
+        withAnimation(.easeInOut(duration: 0.3)) {
+            // Determine if it's more horizontal or vertical
+            if abs(horizontalAmount) > abs(verticalAmount) {
+                // Horizontal swipe - handle page navigation
+                if let post = currentPost, post.content.count > 1 {
+                    let postId = post.id ?? ""
+                    let currentPage = currentPageIndex[postId] ?? 0
+                    
+                    if horizontalAmount < -threshold {
+                        // Swipe left - next page
+                        if currentPage < post.content.count - 1 {
+                            currentPageIndex[postId] = currentPage + 1
+                        }
+                    } else if horizontalAmount > threshold {
+                        // Swipe right - previous page
+                        if currentPage > 0 {
+                            currentPageIndex[postId] = currentPage - 1
+                        }
+                    }
+                }
+            } else {
+                // Vertical swipe - handle post navigation
+                if verticalAmount < -threshold {
+                    // Swipe up - next post
+                    currentIndex = min(currentIndex + 1, dataController.posts.count - 1)
+                } else if verticalAmount > threshold {
+                    // Swipe down - previous post
+                    currentIndex = max(currentIndex - 1, 0)
+                }
+            }
+            
+            // dragOffset = .zero // No longer needed
+        }
+    }
 }
 
 // MARK: - Full Screen Post Content
 struct FullScreenPostContent: View {
     let post: WordPost
     let background: BackgroundType
+    @Binding var currentPageIndex: Int
     let onAppreciate: () -> Void
     @EnvironmentObject var dataController: DataController
-    @State private var currentPageIndex = 0
 
     var hasUserAppreciated: Bool {
         guard let postId = post.id else { return false }
@@ -134,36 +168,51 @@ struct FullScreenPostContent: View {
 
             Spacer()
 
-            if post.content.count > 1 {
-                TabView(selection: $currentPageIndex) {
+            // Content area
+            ZStack {
+                if post.content.count > 1 {
+                    // Multi-page content
                     ForEach(Array(post.content.enumerated()), id: \.offset) { index, page in
                         ScrollView {
                             Text(page)
                                 .font(.system(size: post.fontSize, weight: .light, design: .serif))
                                 .foregroundColor(background.textColor)
-                                .multilineTextAlignment(.center)
+                                .multilineTextAlignment(post.textAlignment.swiftUIAlignment)
                                 .padding(.horizontal, 30)
                                 .padding(.vertical, 20)
                                 .frame(minHeight: 200)
                         }
-                        .tag(index)
+                        .opacity(index == currentPageIndex ? 1 : 0)
+                        .scaleEffect(index == currentPageIndex ? 1 : 0.9)
+                        .animation(.easeInOut(duration: 0.3), value: currentPageIndex)
+                    }
+                    
+                    // Page indicators
+                    VStack {
+                        Spacer()
+                        HStack(spacing: 6) {
+                            ForEach(0..<post.content.count, id: \.self) { index in
+                                Circle()
+                                    .fill(index == currentPageIndex ? background.textColor : background.textColor.opacity(0.3))
+                                    .frame(width: 6, height: 6)
+                            }
+                        }
+                        .padding(.bottom, 10)
+                    }
+                } else {
+                    // Single page content
+                    ScrollView {
+                        Text(post.content.first ?? "")
+                            .font(.system(size: post.fontSize, weight: .light, design: .serif))
+                            .foregroundColor(background.textColor)
+                            .multilineTextAlignment(post.textAlignment.swiftUIAlignment)
+                            .padding(.horizontal, 30)
+                            .padding(.vertical, 20)
+                            .frame(minHeight: 200)
                     }
                 }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-                .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
-            } else {
-                ScrollView {
-                    Text(post.content.first ?? "")
-                        .font(.system(size: post.fontSize, weight: .light, design: .serif))
-                        .foregroundColor(background.textColor)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 30)
-                        .padding(.vertical, 20)
-                        .frame(minHeight: 200)
-                }
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
             }
+            .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
 
             Spacer()
 

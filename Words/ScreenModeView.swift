@@ -142,7 +142,7 @@ struct ScreenModeView: View {
                                                     Text(page)
                                                         .font(.system(size: fontSize, weight: .light, design: .serif))
                                                         .foregroundColor(background.textColor)
-                                                        .multilineTextAlignment(.center)
+                                                        .multilineTextAlignment(post.textAlignment.swiftUIAlignment)
                                                         .padding(.horizontal, 40)
                                                         .tag(index)
                                                 }
@@ -153,7 +153,7 @@ struct ScreenModeView: View {
                                             Text(post.content.first ?? "")
                                                 .font(.system(size: fontSize, weight: .light, design: .serif))
                                                 .foregroundColor(background.textColor)
-                                                .multilineTextAlignment(.center)
+                                                .multilineTextAlignment(post.textAlignment.swiftUIAlignment)
                                                 .padding(.horizontal, 40)
                                         }
                                         

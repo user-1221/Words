@@ -162,6 +162,7 @@ struct WordPost: Identifiable, Codable {
     let content: [String] // Array for multi-page support
     let moods: [Mood]
     let fontSize: CGFloat
+    let textAlignment: TextAlignment
     let createdAt: Date
     let authorId: String
     var appreciationCount: Int = 0
@@ -232,5 +233,28 @@ extension Color {
             blue:  Double(b) / 255,
             opacity: Double(a) / 255
         )
+    }
+}
+// MARK: - Alignment Enum
+// Add this enum to Models.swift
+enum TextAlignment: String, CaseIterable, Codable {
+    case left = "Left"
+    case center = "Center"
+    case right = "Right"
+    
+    var swiftUIAlignment: SwiftUI.TextAlignment {
+        switch self {
+        case .left: return .leading
+        case .center: return .center
+        case .right: return .trailing
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .left: return "text.alignleft"
+        case .center: return "text.aligncenter"
+        case .right: return "text.alignright"
+        }
     }
 }

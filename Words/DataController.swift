@@ -191,7 +191,7 @@ class DataController: ObservableObject {
     }
     
     // MARK: - Post Operations
-    func createPost(title: String, content: [String], moods: [Mood], fontSize: CGFloat) {
+    func createPost(title: String, content: [String], moods: [Mood], fontSize: CGFloat, textAlignment: TextAlignment) {
         guard let userId = currentUserId else {
             errorMessage = "User not authenticated"
             return
@@ -212,6 +212,7 @@ class DataController: ObservableObject {
             "content": content.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
             "moods": moods.map { $0.rawValue },
             "fontSize": fontSize,
+            "textAlignment": textAlignment.rawValue, // Add this
             "createdAt": Timestamp(date: Date()),
             "authorId": userId,
             "appreciationCount": 0
