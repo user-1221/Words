@@ -4,17 +4,17 @@ import SwiftUI
 struct CreatePostView: View {
     @EnvironmentObject var dataController: DataController
     @State private var title = ""
-    @State private var pages: [String] = [""]
+    @State private var pagesLines: [[LineData]] = [[]]
     @State private var currentPageIndex = 0
     @State private var selectedMoods: Set<Mood> = []
     @State private var selectedAlignment: TextAlignment = .center
     @State private var showingPreview = false
+    @State private var editMode: EditMode = .simple
     
-    // Auto font size calculation
-    private let maxCharactersPerPage = 300
-    private let baseFontSize: CGFloat = 24
-    private let minFontSize: CGFloat = 14
-    private let maxFontSize: CGFloat = 32
+    enum EditMode {
+        case simple
+        case advanced
+    }
     
     var background: BackgroundType {
         dataController.userPreferences.selectedBackground
@@ -22,42 +22,19 @@ struct CreatePostView: View {
     
     var canPost: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        pages.contains(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) &&
+        pagesLines.contains(where: { pageLines in
+            !pageLines.isEmpty && pageLines.contains { !$0.text.isEmpty }
+        }) &&
         !selectedMoods.isEmpty &&
         selectedMoods.count <= 3
-    }
-    
-    // Calculate optimal font size based on content
-    private func calculateOptimalFontSize(for text: String) -> CGFloat {
-        let charCount = text.count
-        
-        if charCount <= 50 {
-            return maxFontSize
-        } else if charCount <= 100 {
-            return 28
-        } else if charCount <= 200 {
-            return 20
-        } else if charCount <= 300 {
-            return 16
-        } else {
-            return minFontSize
-        }
-    }
-    
-    // Get the optimal font size for all pages
-    private var optimalFontSize: CGFloat {
-        let longestPage = pages.max { $0.count < $1.count } ?? ""
-        return calculateOptimalFontSize(for: longestPage)
     }
     
     var body: some View {
         NavigationView {
             ZStack {
-                // User's background (now supports video)
                 PersistentVideoBackgroundView(backgroundType: background)
                 
                 VStack(spacing: 0) {
-                    // Content Input
                     ScrollView {
                         VStack(spacing: 20) {
                             // Title Input
@@ -74,9 +51,16 @@ struct CreatePostView: View {
                                     .cornerRadius(12)
                             }
                             
+                            // Edit Mode Toggle
+                            Picker("Edit Mode", selection: $editMode) {
+                                Text("Simple").tag(EditMode.simple)
+                                Text("Advanced").tag(EditMode.advanced)
+                            }
+                            .pickerStyle(SegmentedPickerStyle())
+                            
                             // Page Navigation
                             HStack {
-                                Text("Page \(currentPageIndex + 1) of \(pages.count)")
+                                Text("Page \(currentPageIndex + 1) of \(pagesLines.count)")
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundColor(background.textColor)
                                 
@@ -91,8 +75,9 @@ struct CreatePostView: View {
                                     
                                     Button(action: nextPage) {
                                         Image(systemName: "chevron.right")
-                                            .foregroundColor(background.textColor)
+                                            .foregroundColor(currentPageIndex < pagesLines.count - 1 ? background.textColor : background.textColor.opacity(0.3))
                                     }
+                                    .disabled(currentPageIndex >= pagesLines.count - 1)
                                     
                                     Button(action: addNewPage) {
                                         Image(systemName: "plus.circle.fill")
@@ -101,53 +86,19 @@ struct CreatePostView: View {
                                 }
                             }
                             
-                            // Text Editor for current page
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text("Your Words")
-                                        .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(background.textColor)
-                                    
-                                    Spacer()
-                                    
-                                    Text("\(pages[currentPageIndex].count)/\(maxCharactersPerPage)")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(pages[currentPageIndex].count > maxCharactersPerPage ? .red : background.textColor.opacity(0.7))
-                                }
-                                
-                                ZStack(alignment: .topLeading) {
-                                    if pages[currentPageIndex].isEmpty {
-                                        Text("Share your thoughts, feelings, or reflections...")
-                                            .foregroundColor(background.textColor.opacity(0.5))
-                                            .padding(.top, 8)
-                                            .padding(.leading, 4)
-                                    }
-                                    
-                                    TextEditor(text: $pages[currentPageIndex])
-                                        .font(.system(size: optimalFontSize, weight: .light, design: .serif))
-                                        .foregroundColor(background.textColor)
-                                        .multilineTextAlignment(selectedAlignment.swiftUIAlignment)
-                                        .frame(minHeight: 200)
-                                        .scrollContentBackground(.hidden)
-                                        .background(Color.clear)
-                                        .onChange(of: pages[currentPageIndex]) { oldValue, newValue in
-                                            // Limit characters per page
-                                            if newValue.count > maxCharactersPerPage {
-                                                pages[currentPageIndex] = String(newValue.prefix(maxCharactersPerPage))
-                                            }
-                                        }
-                                }
-                                .padding()
-                                .background(Color.white.opacity(0.8))
-                                .cornerRadius(12)
-                                
-                                // Character limit warning
-                                if pages[currentPageIndex].count > maxCharactersPerPage - 50 {
-                                    Text("Approaching character limit. Consider adding a new page.")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.orange)
-                                        .padding(.horizontal, 4)
-                                }
+                            // Content Editor based on mode
+                            if editMode == .simple {
+                                SimpleTextEditor(
+                                    lines: $pagesLines[currentPageIndex],
+                                    background: background,
+                                    textAlignment: selectedAlignment
+                                )
+                            } else {
+                                LineEditorView(
+                                    lines: $pagesLines[currentPageIndex],
+                                    background: background,
+                                    textAlignment: selectedAlignment
+                                )
                             }
                             
                             // Text Alignment Selection
@@ -161,28 +112,24 @@ struct CreatePostView: View {
                                         Button(action: {
                                             selectedAlignment = alignment
                                         }) {
-                                            Image(systemName: alignment.icon)
-                                                .font(.system(size: 20))
-                                                .foregroundColor(selectedAlignment == alignment ? .white : background.textColor)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 12)
-                                                .background(selectedAlignment == alignment ? Color.blue : Color.clear)
+                                            VStack(spacing: 4) {
+                                                Image(systemName: alignment.icon)
+                                                    .font(.system(size: 20))
+                                                if alignment.isVertical {
+                                                    Text("縦書き")
+                                                        .font(.system(size: 10))
+                                                }
+                                            }
+                                            .foregroundColor(selectedAlignment == alignment ? .white : background.textColor)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 12)
+                                            .background(selectedAlignment == alignment ? Color.blue : Color.clear)
                                         }
                                     }
                                 }
                                 .background(Color.white.opacity(0.8))
                                 .cornerRadius(8)
                             }
-                            
-                            // Auto Font Size Info
-                            HStack {
-                                Image(systemName: "textformat.size")
-                                    .foregroundColor(background.textColor.opacity(0.7))
-                                Text("Font size adjusts automatically based on content length")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(background.textColor.opacity(0.7))
-                            }
-                            .padding(.horizontal, 4)
                             
                             // Mood Selection
                             VStack(alignment: .leading, spacing: 8) {
@@ -245,12 +192,11 @@ struct CreatePostView: View {
             }
             .navigationBarHidden(true)
         }
-        .sheet(isPresented: $showingPreview) {
+        .fullScreenCover(isPresented: $showingPreview) {
             PreviewPostView(
                 title: title,
-                pages: pages.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty },
+                linesData: pagesLines.filter { !$0.isEmpty },
                 moods: Array(selectedMoods),
-                fontSize: optimalFontSize,
                 textAlignment: selectedAlignment
             )
         }
@@ -263,39 +209,102 @@ struct CreatePostView: View {
     }
     
     private func nextPage() {
-        if currentPageIndex < pages.count - 1 {
+        if currentPageIndex < pagesLines.count - 1 {
             currentPageIndex += 1
         }
     }
     
     private func addNewPage() {
-        pages.append("")
-        currentPageIndex = pages.count - 1
+        pagesLines.append([])
+        currentPageIndex = pagesLines.count - 1
     }
     
     private func createPost() {
         guard canPost else { return }
         
-        let nonEmptyPages = pages.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let nonEmptyPages = pagesLines.filter { pageLines in
+            !pageLines.isEmpty && pageLines.contains { !$0.text.isEmpty }
+        }
         
         dataController.createPost(
             title: title,
-            content: nonEmptyPages,
+            linesData: nonEmptyPages,
             moods: Array(selectedMoods),
-            fontSize: optimalFontSize,
             textAlignment: selectedAlignment
         )
         
         // Reset form
         title = ""
-        pages = [""]
+        pagesLines = [[]]
         currentPageIndex = 0
         selectedMoods = []
         selectedAlignment = .center
+        editMode = .simple
     }
 }
 
-// MARK: - Mood Selection Chip Component (unchanged)
+// MARK: - Simple Text Editor
+struct SimpleTextEditor: View {
+    @Binding var lines: [LineData]
+    let background: BackgroundType
+    let textAlignment: TextAlignment
+    @State private var textContent: String = ""
+    @State private var defaultFontSize: CGFloat = 20
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Default Font Size: \(Int(defaultFontSize))")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(background.textColor)
+                
+                Slider(value: $defaultFontSize, in: 12...36, step: 1)
+                    .accentColor(background.textColor)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Your Words (press return for new line)")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(background.textColor)
+                
+                TextEditor(text: $textContent)
+                    .font(.system(size: 16))
+                    .foregroundColor(background.textColor)
+                    .frame(minHeight: 250)
+                    .scrollContentBackground(.hidden)
+                    .padding()
+                    .background(Color.white.opacity(0.6))
+                    .cornerRadius(12)
+                    .onAppear {
+                        textContent = lines.map { $0.text }.joined(separator: "\n")
+                        if !lines.isEmpty, let firstLine = lines.first {
+                            defaultFontSize = firstLine.fontSize
+                        }
+                    }
+                    .onChange(of: textContent) { oldValue, newValue in
+                        let textLines = newValue.components(separatedBy: "\n")
+                        lines = textLines.map { lineText in
+                            if let existingLine = lines.first(where: { $0.text == lineText }) {
+                                return existingLine
+                            } else {
+                                return LineData(text: lineText, fontSize: defaultFontSize)
+                            }
+                        }
+                    }
+                    .onChange(of: defaultFontSize) { oldValue, newValue in
+                        lines = lines.map { LineData(text: $0.text, fontSize: newValue) }
+                    }
+            }
+            
+            Text("Tip: Switch to Advanced mode to set different font sizes for each line")
+                .font(.system(size: 12))
+                .foregroundColor(background.textColor.opacity(0.6))
+                .italic()
+        }
+    }
+}
+
+// MARK: - Mood Selection Chip
 struct MoodSelectionChip: View {
     let mood: Mood
     let isSelected: Bool
@@ -326,15 +335,15 @@ struct MoodSelectionChip: View {
     }
 }
 
-// MARK: - Preview Post View (Updated)
+// MARK: - Preview Post View
 struct PreviewPostView: View {
     let title: String
-    let pages: [String]
+    let linesData: [[LineData]]
     let moods: [Mood]
-    let fontSize: CGFloat
     let textAlignment: TextAlignment
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var dataController: DataController
+    @State private var currentPageIndex = 0
     
     var background: BackgroundType {
         dataController.userPreferences.selectedBackground
@@ -364,7 +373,6 @@ struct PreviewPostView: View {
                 }
                 .padding()
                 
-                // Title
                 Text(title)
                     .font(.system(size: 24, weight: .semibold, design: .serif))
                     .foregroundColor(background.textColor)
@@ -372,34 +380,58 @@ struct PreviewPostView: View {
                 
                 Spacer()
                 
-                // Multi-page content
-                if pages.count > 1 {
-                    TabView {
-                        ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
-                            ScrollView {
-                                Text(page)
-                                    .font(.system(size: fontSize, weight: .light, design: .serif))
-                                    .foregroundColor(background.textColor)
-                                    .multilineTextAlignment(textAlignment.swiftUIAlignment)
+                if linesData.count > 1 {
+                    TabView(selection: $currentPageIndex) {
+                        ForEach(Array(linesData.enumerated()), id: \.offset) { index, pageLines in
+                            ScrollView(textAlignment.isVertical ? .horizontal : .vertical) {
+                                if textAlignment.isVertical {
+                                    VerticalLinesView(
+                                        lines: pageLines,
+                                        textColor: background.textColor,
+                                        maxHeight: UIScreen.main.bounds.height * 0.5
+                                    )
+                                    .frame(width: UIScreen.main.bounds.width)
+                                } else {
+                                    VStack(alignment: textAlignmentToHStack(textAlignment), spacing: 8) {
+                                        ForEach(Array(pageLines.enumerated()), id: \.offset) { lineIndex, lineData in
+                                            Text(lineData.text)
+                                                .font(.system(size: lineData.fontSize, weight: .light, design: .serif))
+                                                .foregroundColor(background.textColor)
+                                                .multilineTextAlignment(textAlignment.swiftUIAlignment)
+                                        }
+                                    }
                                     .padding(40)
+                                }
                             }
                             .tag(index)
                         }
                     }
                     .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-                } else {
-                    ScrollView {
-                        Text(pages.first ?? "")
-                            .font(.system(size: fontSize, weight: .light, design: .serif))
-                            .foregroundColor(background.textColor)
-                            .multilineTextAlignment(textAlignment.swiftUIAlignment)
+                } else if let firstPage = linesData.first {
+                    ScrollView(textAlignment.isVertical ? .horizontal : .vertical) {
+                        if textAlignment.isVertical {
+                            VerticalLinesView(
+                                lines: firstPage,
+                                textColor: background.textColor,
+                                maxHeight: UIScreen.main.bounds.height * 0.5
+                            )
+                            .frame(width: UIScreen.main.bounds.width)
+                        } else {
+                            VStack(alignment: textAlignmentToHStack(textAlignment), spacing: 8) {
+                                ForEach(Array(firstPage.enumerated()), id: \.offset) { lineIndex, lineData in
+                                    Text(lineData.text)
+                                        .font(.system(size: lineData.fontSize, weight: .light, design: .serif))
+                                        .foregroundColor(background.textColor)
+                                        .multilineTextAlignment(textAlignment.swiftUIAlignment)
+                                }
+                            }
                             .padding(40)
+                        }
                     }
                 }
                 
                 Spacer()
                 
-                // Mood indicators
                 HStack(spacing: 12) {
                     ForEach(moods, id: \.self) { mood in
                         Text("\(mood.icon) \(mood.rawValue)")
@@ -413,6 +445,15 @@ struct PreviewPostView: View {
                 }
                 .padding(.bottom, 40)
             }
+        }
+    }
+    
+    private func textAlignmentToHStack(_ alignment: TextAlignment) -> HorizontalAlignment {
+        switch alignment {
+        case .left: return .leading
+        case .center: return .center
+        case .right: return .trailing
+        case .vertical: return .center
         }
     }
 }

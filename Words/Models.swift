@@ -8,6 +8,16 @@ struct UserPreferences: Codable {
     var backgroundMusicEnabled: Bool = false
     var backgroundMusicVolume: Double = 0.5
 }
+// MARK: - Line Data Model
+struct LineData: Codable {
+    let text: String
+    let fontSize: CGFloat
+    
+    init(text: String, fontSize: CGFloat = 20) {
+        self.text = text
+        self.fontSize = fontSize
+    }
+}
 
 // MARK: - Background Type
 enum BackgroundType: String, CaseIterable, Codable {
@@ -159,13 +169,27 @@ enum BackgroundType: String, CaseIterable, Codable {
 struct WordPost: Identifiable, Codable {
     @DocumentID var id: String?
     let title: String
-    let content: [String] // Array for multi-page support
+    let content: [String] // Keep for backward compatibility
+    let linesData: [[LineData]]? // New: Array of pages, each page has array of LineData
     let moods: [Mood]
-    let fontSize: CGFloat
+    let fontSize: CGFloat // Keep as default/fallback
     let textAlignment: TextAlignment
     let createdAt: Date
     let authorId: String
     var appreciationCount: Int = 0
+    
+    // Computed property to get lines data with fallback
+    var structuredContent: [[LineData]] {
+        if let linesData = linesData {
+            return linesData
+        }
+        // Fallback for old posts: convert content to LineData
+        return content.map { pageContent in
+            pageContent.split(separator: "\n").map { line in
+                LineData(text: String(line), fontSize: fontSize)
+            }
+        }
+    }
 }
 
 // MARK: - Mood Enum
@@ -237,16 +261,20 @@ extension Color {
 }
 // MARK: - Alignment Enum
 // Add this enum to Models.swift
+// Add to Models.swift - Replace the existing TextAlignment enum
+
 enum TextAlignment: String, CaseIterable, Codable {
     case left = "Left"
     case center = "Center"
     case right = "Right"
+    case vertical = "Vertical"
     
     var swiftUIAlignment: SwiftUI.TextAlignment {
         switch self {
         case .left: return .leading
         case .center: return .center
         case .right: return .trailing
+        case .vertical: return .center // Default for vertical
         }
     }
     
@@ -255,6 +283,11 @@ enum TextAlignment: String, CaseIterable, Codable {
         case .left: return "text.alignleft"
         case .center: return "text.aligncenter"
         case .right: return "text.alignright"
+        case .vertical: return "text.justify" // Using justify icon for vertical
         }
+    }
+    
+    var isVertical: Bool {
+        return self == .vertical
     }
 }

@@ -6,7 +6,7 @@ struct HomeView: View {
     @State private var showingSendAppreciation = false
     @State private var selectedPost: WordPost?
     @State private var currentIndex = 0
-    @State private var currentPageIndex: [String: Int] = [:] // Track page index for each post
+    @State private var currentPageIndex: [String: Int] = [:]
 
     var userBackground: BackgroundType {
         dataController.userPreferences.selectedBackground
@@ -40,7 +40,6 @@ struct HomeView: View {
                             )
                             .opacity(index == currentIndex ? 1 : 0)
                             .scaleEffect(index == currentIndex ? 1 : 0.95)
-
                             .animation(.easeInOut(duration: 0.3), value: currentIndex)
                         }
                     }
@@ -89,37 +88,28 @@ struct HomeView: View {
         let threshold: CGFloat = 50
         
         withAnimation(.easeInOut(duration: 0.3)) {
-            // Determine if it's more horizontal or vertical
             if abs(horizontalAmount) > abs(verticalAmount) {
-                // Horizontal swipe - handle page navigation
-                if let post = currentPost, post.content.count > 1 {
+                if let post = currentPost, post.structuredContent.count > 1 {
                     let postId = post.id ?? ""
                     let currentPage = currentPageIndex[postId] ?? 0
                     
                     if horizontalAmount < -threshold {
-                        // Swipe left - next page
-                        if currentPage < post.content.count - 1 {
+                        if currentPage < post.structuredContent.count - 1 {
                             currentPageIndex[postId] = currentPage + 1
                         }
                     } else if horizontalAmount > threshold {
-                        // Swipe right - previous page
                         if currentPage > 0 {
                             currentPageIndex[postId] = currentPage - 1
                         }
                     }
                 }
             } else {
-                // Vertical swipe - handle post navigation
                 if verticalAmount < -threshold {
-                    // Swipe up - next post
                     currentIndex = min(currentIndex + 1, dataController.posts.count - 1)
                 } else if verticalAmount > threshold {
-                    // Swipe down - previous post
                     currentIndex = max(currentIndex - 1, 0)
                 }
             }
-            
-            // dragOffset = .zero // No longer needed
         }
     }
 }
@@ -170,28 +160,42 @@ struct FullScreenPostContent: View {
 
             // Content area
             ZStack {
-                if post.content.count > 1 {
-                    // Multi-page content
-                    ForEach(Array(post.content.enumerated()), id: \.offset) { index, page in
-                        ScrollView {
-                            Text(page)
-                                .font(.system(size: post.fontSize, weight: .light, design: .serif))
-                                .foregroundColor(background.textColor)
-                                .multilineTextAlignment(post.textAlignment.swiftUIAlignment)
+                let structuredContent = post.structuredContent
+                
+                if structuredContent.count > 1 {
+                    ForEach(Array(structuredContent.enumerated()), id: \.offset) { pageIndex, pageLines in
+                        ScrollView(post.textAlignment.isVertical ? .horizontal : .vertical, showsIndicators: false) {
+                            if post.textAlignment.isVertical {
+                                VerticalLinesView(
+                                    lines: pageLines,
+                                    textColor: background.textColor,
+                                    maxHeight: UIScreen.main.bounds.height * 0.5
+                                )
+                            } else {
+                                VStack(alignment: textAlignmentToHStack(post.textAlignment), spacing: 8) {
+                                    ForEach(Array(pageLines.enumerated()), id: \.offset) { lineIndex, lineData in
+                                        if !lineData.text.isEmpty {
+                                            Text(lineData.text)
+                                                .font(.system(size: lineData.fontSize, weight: .light, design: .serif))
+                                                .foregroundColor(background.textColor)
+                                                .multilineTextAlignment(post.textAlignment.swiftUIAlignment)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+                                    }
+                                }
                                 .padding(.horizontal, 30)
                                 .padding(.vertical, 20)
-                                .frame(minHeight: 200)
+                            }
                         }
-                        .opacity(index == currentPageIndex ? 1 : 0)
-                        .scaleEffect(index == currentPageIndex ? 1 : 0.9)
+                        .opacity(pageIndex == currentPageIndex ? 1 : 0)
+                        .scaleEffect(pageIndex == currentPageIndex ? 1 : 0.9)
                         .animation(.easeInOut(duration: 0.3), value: currentPageIndex)
                     }
                     
-                    // Page indicators
                     VStack {
                         Spacer()
                         HStack(spacing: 6) {
-                            ForEach(0..<post.content.count, id: \.self) { index in
+                            ForEach(0..<structuredContent.count, id: \.self) { index in
                                 Circle()
                                     .fill(index == currentPageIndex ? background.textColor : background.textColor.opacity(0.3))
                                     .frame(width: 6, height: 6)
@@ -199,16 +203,29 @@ struct FullScreenPostContent: View {
                         }
                         .padding(.bottom, 10)
                     }
-                } else {
-                    // Single page content
-                    ScrollView {
-                        Text(post.content.first ?? "")
-                            .font(.system(size: post.fontSize, weight: .light, design: .serif))
-                            .foregroundColor(background.textColor)
-                            .multilineTextAlignment(post.textAlignment.swiftUIAlignment)
+                } else if let firstPage = structuredContent.first {
+                    ScrollView(post.textAlignment.isVertical ? .horizontal : .vertical, showsIndicators: false) {
+                        if post.textAlignment.isVertical {
+                            VerticalLinesView(
+                                lines: firstPage,
+                                textColor: background.textColor,
+                                maxHeight: UIScreen.main.bounds.height * 0.5
+                            )
+                        } else {
+                            VStack(alignment: textAlignmentToHStack(post.textAlignment), spacing: 8) {
+                                ForEach(Array(firstPage.enumerated()), id: \.offset) { lineIndex, lineData in
+                                    if !lineData.text.isEmpty {
+                                        Text(lineData.text)
+                                            .font(.system(size: lineData.fontSize, weight: .light, design: .serif))
+                                            .foregroundColor(background.textColor)
+                                            .multilineTextAlignment(post.textAlignment.swiftUIAlignment)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                }
+                            }
                             .padding(.horizontal, 30)
                             .padding(.vertical, 20)
-                            .frame(minHeight: 200)
+                        }
                     }
                 }
             }
@@ -222,8 +239,8 @@ struct FullScreenPostContent: View {
                         .font(.system(size: 12))
                         .foregroundColor(background.textColor.opacity(0.7))
 
-                    if post.content.count > 1 {
-                        Text("Page \(currentPageIndex + 1) of \(post.content.count)")
+                    if post.structuredContent.count > 1 {
+                        Text("Page \(currentPageIndex + 1) of \(post.structuredContent.count)")
                             .font(.system(size: 11))
                             .foregroundColor(background.textColor.opacity(0.5))
                     }
@@ -255,6 +272,15 @@ struct FullScreenPostContent: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 100)
+        }
+    }
+    
+    private func textAlignmentToHStack(_ alignment: TextAlignment) -> HorizontalAlignment {
+        switch alignment {
+        case .left: return .leading
+        case .center: return .center
+        case .right: return .trailing
+        case .vertical: return .center
         }
     }
 }

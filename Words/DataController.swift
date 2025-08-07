@@ -104,7 +104,7 @@ class DataController: ObservableObject {
         
         postsListener = db.collection("posts")
             .order(by: "createdAt", descending: true)
-            .limit(to: 50) // Limit for performance
+            .limit(to: 50)
             .addSnapshotListener { [weak self] snapshot, error in
                 DispatchQueue.main.async {
                     if let error = error {
@@ -115,8 +115,36 @@ class DataController: ObservableObject {
                     
                     self?.posts = snapshot?.documents.compactMap { document in
                         do {
-                            var post = try document.data(as: WordPost.self)
-                            post.id = document.documentID
+                            let data = document.data()
+                            
+                            // Manually decode linesData if present
+                            var linesData: [[LineData]]? = nil
+                            if let linesDataRaw = data["linesData"] as? [[[String: Any]]] {
+                                linesData = linesDataRaw.map { pageData in
+                                    pageData.compactMap { lineDict in
+                                        guard let text = lineDict["text"] as? String,
+                                              let fontSize = lineDict["fontSize"] as? Double else {
+                                            return nil
+                                        }
+                                        return LineData(text: text, fontSize: CGFloat(fontSize))
+                                    }
+                                }
+                            }
+                            
+                            // Create post with all fields
+                            let post = WordPost(
+                                id: document.documentID,
+                                title: data["title"] as? String ?? "",
+                                content: data["content"] as? [String] ?? [],
+                                linesData: linesData,
+                                moods: (data["moods"] as? [String] ?? []).compactMap { Mood(rawValue: $0) },
+                                fontSize: data["fontSize"] as? CGFloat ?? 20,
+                                textAlignment: TextAlignment(rawValue: data["textAlignment"] as? String ?? "Center") ?? .center,
+                                createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
+                                authorId: data["authorId"] as? String ?? "",
+                                appreciationCount: data["appreciationCount"] as? Int ?? 0
+                            )
+                            
                             return post
                         } catch {
                             print("Error decoding post \(document.documentID): \(error)")
@@ -155,7 +183,6 @@ class DataController: ObservableObject {
                         }
                     } ?? []
                     
-                    // Update unread count
                     self?.unreadAppreciationCount = self?.myAppreciations.filter { !$0.isRead }.count ?? 0
                 }
             }
@@ -191,6 +218,8 @@ class DataController: ObservableObject {
     }
     
     // MARK: - Post Operations
+    
+    // Original createPost method (keep for backward compatibility)
     func createPost(title: String, content: [String], moods: [Mood], fontSize: CGFloat, textAlignment: TextAlignment) {
         guard let userId = currentUserId else {
             errorMessage = "User not authenticated"
@@ -212,7 +241,7 @@ class DataController: ObservableObject {
             "content": content.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
             "moods": moods.map { $0.rawValue },
             "fontSize": fontSize,
-            "textAlignment": textAlignment.rawValue, // Add this
+            "textAlignment": textAlignment.rawValue,
             "createdAt": Timestamp(date: Date()),
             "authorId": userId,
             "appreciationCount": 0
@@ -224,9 +253,58 @@ class DataController: ObservableObject {
                 if let error = error {
                     self?.errorMessage = "Error creating post: \(error.localizedDescription)"
                     print("Error creating post: \(error)")
-                } else {
-                    // Post created successfully
-                    self?.errorMessage = nil
+                }
+            }
+        }
+    }
+    
+    // New createPost method with linesData support
+    func createPost(title: String, linesData: [[LineData]], moods: [Mood], textAlignment: TextAlignment) {
+        guard let userId = currentUserId else {
+            errorMessage = "User not authenticated"
+            return
+        }
+        
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !linesData.isEmpty,
+              !moods.isEmpty else {
+            errorMessage = "Please fill all required fields"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        // Convert LineData to Firestore-compatible format
+        let linesDataArray = linesData.map { pageLines in
+            pageLines.map { line in
+                ["text": line.text, "fontSize": line.fontSize]
+            }
+        }
+        
+        // Also create content array for backward compatibility
+        let content = linesData.map { pageLines in
+            pageLines.map { $0.text }.joined(separator: "\n")
+        }
+        
+        let postData: [String: Any] = [
+            "title": title.trimmingCharacters(in: .whitespacesAndNewlines),
+            "content": content, // For backward compatibility
+            "linesData": linesDataArray, // New structured data
+            "moods": moods.map { $0.rawValue },
+            "fontSize": 20, // Default fallback
+            "textAlignment": textAlignment.rawValue,
+            "createdAt": Timestamp(date: Date()),
+            "authorId": userId,
+            "appreciationCount": 0
+        ]
+        
+        db.collection("posts").addDocument(data: postData) { [weak self] error in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                if let error = error {
+                    self?.errorMessage = "Error creating post: \(error.localizedDescription)"
+                    print("Error creating post: \(error)")
                 }
             }
         }
@@ -253,7 +331,12 @@ class DataController: ObservableObject {
         }
         
         // Get first 50 characters of first page for display
-        let postSnippet = String(post.content.first?.prefix(50) ?? "")
+        let postSnippet: String
+        if let firstLineData = post.structuredContent.first?.first {
+            postSnippet = String(firstLineData.text.prefix(50))
+        } else {
+            postSnippet = String(post.content.first?.prefix(50) ?? "")
+        }
         
         let appreciationData: [String: Any] = [
             "postId": postId,
