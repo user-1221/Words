@@ -131,7 +131,7 @@ class DataController: ObservableObject {
                                 }
                             }
                             
-                            // Create post with all fields
+                            // Create post with all fields including new layout fields
                             let post = WordPost(
                                 id: document.documentID,
                                 title: data["title"] as? String ?? "",
@@ -142,7 +142,9 @@ class DataController: ObservableObject {
                                 textAlignment: TextAlignment(rawValue: data["textAlignment"] as? String ?? "Center") ?? .center,
                                 createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
                                 authorId: data["authorId"] as? String ?? "",
-                                appreciationCount: data["appreciationCount"] as? Int ?? 0
+                                appreciationCount: data["appreciationCount"] as? Int ?? 0,
+                                layoutSeed: data["layoutSeed"] as? Int,
+                                templateName: data["templateName"] as? String
                             )
                             
                             return post
@@ -217,49 +219,17 @@ class DataController: ObservableObject {
             }
     }
     
-    // MARK: - Post Operations
+    // MARK: - Post Operations (Updated with Layout Support)
     
-    // Original createPost method (keep for backward compatibility)
-    func createPost(title: String, content: [String], moods: [Mood], fontSize: CGFloat, textAlignment: TextAlignment) {
-        guard let userId = currentUserId else {
-            errorMessage = "User not authenticated"
-            return
-        }
-        
-        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !content.isEmpty,
-              !moods.isEmpty else {
-            errorMessage = "Please fill all required fields"
-            return
-        }
-        
-        isLoading = true
-        errorMessage = nil
-        
-        let postData: [String: Any] = [
-            "title": title.trimmingCharacters(in: .whitespacesAndNewlines),
-            "content": content.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
-            "moods": moods.map { $0.rawValue },
-            "fontSize": fontSize,
-            "textAlignment": textAlignment.rawValue,
-            "createdAt": Timestamp(date: Date()),
-            "authorId": userId,
-            "appreciationCount": 0
-        ]
-        
-        db.collection("posts").addDocument(data: postData) { [weak self] error in
-            DispatchQueue.main.async {
-                self?.isLoading = false
-                if let error = error {
-                    self?.errorMessage = "Error creating post: \(error.localizedDescription)"
-                    print("Error creating post: \(error)")
-                }
-            }
-        }
-    }
-    
-    // New createPost method with linesData support
-    func createPost(title: String, linesData: [[LineData]], moods: [Mood], textAlignment: TextAlignment) {
+    // New createPost method with automatic layout generation
+    func createPost(
+        title: String,
+        linesData: [[LineData]],
+        moods: [Mood],
+        textAlignment: TextAlignment,
+        layoutSeed: Int,
+        templateName: String
+    ) {
         guard let userId = currentUserId else {
             errorMessage = "User not authenticated"
             return
@@ -290,9 +260,50 @@ class DataController: ObservableObject {
         let postData: [String: Any] = [
             "title": title.trimmingCharacters(in: .whitespacesAndNewlines),
             "content": content, // For backward compatibility
-            "linesData": linesDataArray, // New structured data
+            "linesData": linesDataArray, // Structured data
             "moods": moods.map { $0.rawValue },
             "fontSize": 20, // Default fallback
+            "textAlignment": textAlignment.rawValue,
+            "createdAt": Timestamp(date: Date()),
+            "authorId": userId,
+            "appreciationCount": 0,
+            "layoutSeed": layoutSeed, // New field
+            "templateName": templateName // New field
+        ]
+        
+        db.collection("posts").addDocument(data: postData) { [weak self] error in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                if let error = error {
+                    self?.errorMessage = "Error creating post: \(error.localizedDescription)"
+                    print("Error creating post: \(error)")
+                }
+            }
+        }
+    }
+    
+    // Keep old method for backward compatibility
+    func createPost(title: String, content: [String], moods: [Mood], fontSize: CGFloat, textAlignment: TextAlignment) {
+        guard let userId = currentUserId else {
+            errorMessage = "User not authenticated"
+            return
+        }
+        
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !content.isEmpty,
+              !moods.isEmpty else {
+            errorMessage = "Please fill all required fields"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        let postData: [String: Any] = [
+            "title": title.trimmingCharacters(in: .whitespacesAndNewlines),
+            "content": content.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
+            "moods": moods.map { $0.rawValue },
+            "fontSize": fontSize,
             "textAlignment": textAlignment.rawValue,
             "createdAt": Timestamp(date: Date()),
             "authorId": userId,

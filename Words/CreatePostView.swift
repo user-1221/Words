@@ -1,20 +1,18 @@
 import SwiftUI
 
-// MARK: - Create Post View
+// MARK: - Create Post View (Simplified with Auto-Styling)
 struct CreatePostView: View {
     @EnvironmentObject var dataController: DataController
     @State private var title = ""
-    @State private var pagesLines: [[LineData]] = [[]]
-    @State private var currentPageIndex = 0
+    @State private var content = ""
     @State private var selectedMoods: Set<Mood> = []
     @State private var selectedAlignment: TextAlignment = .center
     @State private var showingPreview = false
-    @State private var editMode: EditMode = .simple
     
-    enum EditMode {
-        case simple
-        case advanced
-    }
+    // Generated layout data
+    @State private var generatedLinesData: [[LineData]] = []
+    @State private var currentLayoutSeed: Int = 0
+    @State private var currentTemplateName: String = ""
     
     var background: BackgroundType {
         dataController.userPreferences.selectedBackground
@@ -22,9 +20,7 @@ struct CreatePostView: View {
     
     var canPost: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        pagesLines.contains(where: { pageLines in
-            !pageLines.isEmpty && pageLines.contains { !$0.text.isEmpty }
-        }) &&
+        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !selectedMoods.isEmpty &&
         selectedMoods.count <= 3
     }
@@ -36,7 +32,19 @@ struct CreatePostView: View {
                 
                 VStack(spacing: 0) {
                     ScrollView {
-                        VStack(spacing: 20) {
+                        VStack(spacing: 24) {
+                            // Header
+                            VStack(spacing: 8) {
+                                Text("Create Your Words")
+                                    .font(.system(size: 28, weight: .semibold))
+                                    .foregroundColor(background.textColor)
+                                
+                                Text("Just write. We'll make it beautiful.")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(background.textColor.opacity(0.7))
+                            }
+                            .padding(.top, 20)
+                            
                             // Title Input
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Title")
@@ -44,61 +52,54 @@ struct CreatePostView: View {
                                     .foregroundColor(background.textColor)
                                 
                                 TextField("Give your words a title...", text: $title)
-                                    .font(.system(size: 20, weight: .regular))
+                                    .font(.system(size: 20))
                                     .foregroundColor(background.textColor)
                                     .padding()
                                     .background(Color.white.opacity(0.8))
                                     .cornerRadius(12)
                             }
                             
-                            // Edit Mode Toggle
-                            Picker("Edit Mode", selection: $editMode) {
-                                Text("Simple").tag(EditMode.simple)
-                                Text("Advanced").tag(EditMode.advanced)
-                            }
-                            .pickerStyle(SegmentedPickerStyle())
-                            
-                            // Page Navigation
-                            HStack {
-                                Text("Page \(currentPageIndex + 1) of \(pagesLines.count)")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(background.textColor)
-                                
-                                Spacer()
-                                
-                                HStack(spacing: 12) {
-                                    Button(action: previousPage) {
-                                        Image(systemName: "chevron.left")
-                                            .foregroundColor(currentPageIndex > 0 ? background.textColor : background.textColor.opacity(0.3))
-                                    }
-                                    .disabled(currentPageIndex == 0)
+                            // Content Input
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Your Words")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(background.textColor)
                                     
-                                    Button(action: nextPage) {
-                                        Image(systemName: "chevron.right")
-                                            .foregroundColor(currentPageIndex < pagesLines.count - 1 ? background.textColor : background.textColor.opacity(0.3))
-                                    }
-                                    .disabled(currentPageIndex >= pagesLines.count - 1)
+                                    Spacer()
                                     
-                                    Button(action: addNewPage) {
-                                        Image(systemName: "plus.circle.fill")
-                                            .foregroundColor(background.textColor)
-                                    }
+                                    Text("\(content.count) characters")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(background.textColor.opacity(0.6))
                                 }
-                            }
-                            
-                            // Content Editor based on mode
-                            if editMode == .simple {
-                                SimpleTextEditor(
-                                    lines: $pagesLines[currentPageIndex],
-                                    background: background,
-                                    textAlignment: selectedAlignment
-                                )
-                            } else {
-                                LineEditorView(
-                                    lines: $pagesLines[currentPageIndex],
-                                    background: background,
-                                    textAlignment: selectedAlignment
-                                )
+                                
+                                TextEditor(text: $content)
+                                    .font(.system(size: 16))
+                                    .foregroundColor(background.textColor)
+                                    .scrollContentBackground(.hidden)
+                                    .padding()
+                                    .frame(minHeight: 250)
+                                    .background(Color.white.opacity(0.8))
+                                    .cornerRadius(12)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("💡 Tips:")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(background.textColor.opacity(0.8))
+                                    
+                                    Text("• Press return for a new line")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(background.textColor.opacity(0.6))
+                                    
+                                    Text("• Press return 3 times for a new page")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(background.textColor.opacity(0.6))
+                                    
+                                    Text("• Keep lines short for more impact")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(background.textColor.opacity(0.6))
+                                }
+                                .padding(.horizontal, 8)
                             }
                             
                             // Text Alignment Selection
@@ -140,10 +141,14 @@ struct CreatePostView: View {
                                     
                                     Spacer()
                                     
-                                    Text("\(selectedMoods.count)/3")
+                                    Text("\(selectedMoods.count)/3 selected")
                                         .font(.system(size: 14))
                                         .foregroundColor(background.textColor.opacity(0.7))
                                 }
+                                
+                                Text("Moods influence the visual style")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(background.textColor.opacity(0.6))
                                 
                                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
                                     ForEach(Mood.allCases, id: \.self) { mood in
@@ -168,16 +173,25 @@ struct CreatePostView: View {
                     // Bottom Actions
                     VStack(spacing: 12) {
                         Button("Preview") {
+                            generateLayout()
                             showingPreview = true
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.white.opacity(0.8))
-                        .foregroundColor(background.textColor)
+                        .background(canPost ? Color.white.opacity(0.8) : Color.gray.opacity(0.3))
+                        .foregroundColor(canPost ? background.textColor : background.textColor.opacity(0.5))
                         .cornerRadius(12)
+                        .disabled(!canPost)
                         
                         Button("Share Words") {
-                            createPost()
+                            if canPost && !generatedLinesData.isEmpty {
+                                createPost()
+                            } else {
+                                generateLayout()
+                                if !generatedLinesData.isEmpty {
+                                    createPost()
+                                }
+                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -193,157 +207,81 @@ struct CreatePostView: View {
             .navigationBarHidden(true)
         }
         .fullScreenCover(isPresented: $showingPreview) {
-            PreviewPostView(
+            AutoStyledPreviewView(
                 title: title,
-                linesData: pagesLines.filter { !$0.isEmpty },
+                linesData: generatedLinesData,
                 moods: Array(selectedMoods),
-                textAlignment: selectedAlignment
+                textAlignment: selectedAlignment,
+                templateName: currentTemplateName,
+                onRegenerate: {
+                    generateLayout()
+                },
+                onConfirm: {
+                    showingPreview = false
+                    createPost()
+                }
             )
         }
     }
     
-    private func previousPage() {
-        if currentPageIndex > 0 {
-            currentPageIndex -= 1
-        }
+    // MARK: - Generate Layout
+    private func generateLayout() {
+        let result = TemplateEngine.generateStyledLayout(
+            title: title,
+            content: content,
+            moods: Array(selectedMoods),
+            alignment: selectedAlignment,
+            seed: nil // Will generate random seed
+        )
+        
+        generatedLinesData = result.linesData
+        currentLayoutSeed = result.layoutSeed
+        currentTemplateName = result.templateName
     }
     
-    private func nextPage() {
-        if currentPageIndex < pagesLines.count - 1 {
-            currentPageIndex += 1
-        }
-    }
-    
-    private func addNewPage() {
-        pagesLines.append([])
-        currentPageIndex = pagesLines.count - 1
-    }
-    
+    // MARK: - Create Post
     private func createPost() {
         guard canPost else { return }
         
-        let nonEmptyPages = pagesLines.filter { pageLines in
-            !pageLines.isEmpty && pageLines.contains { !$0.text.isEmpty }
+        // Generate layout if not already done
+        if generatedLinesData.isEmpty {
+            generateLayout()
         }
         
         dataController.createPost(
             title: title,
-            linesData: nonEmptyPages,
+            linesData: generatedLinesData,
             moods: Array(selectedMoods),
-            textAlignment: selectedAlignment
+            textAlignment: selectedAlignment,
+            layoutSeed: currentLayoutSeed,
+            templateName: currentTemplateName
         )
         
         // Reset form
         title = ""
-        pagesLines = [[]]
-        currentPageIndex = 0
+        content = ""
         selectedMoods = []
         selectedAlignment = .center
-        editMode = .simple
+        generatedLinesData = []
+        currentLayoutSeed = 0
+        currentTemplateName = ""
     }
 }
 
-// MARK: - Simple Text Editor
-struct SimpleTextEditor: View {
-    @Binding var lines: [LineData]
-    let background: BackgroundType
-    let textAlignment: TextAlignment
-    @State private var textContent: String = ""
-    @State private var defaultFontSize: CGFloat = 20
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Default Font Size: \(Int(defaultFontSize))")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(background.textColor)
-                
-                Slider(value: $defaultFontSize, in: 12...36, step: 1)
-                    .accentColor(background.textColor)
-            }
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Your Words (press return for new line)")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(background.textColor)
-                
-                TextEditor(text: $textContent)
-                    .font(.system(size: 16))
-                    .foregroundColor(background.textColor)
-                    .frame(minHeight: 250)
-                    .scrollContentBackground(.hidden)
-                    .padding()
-                    .background(Color.white.opacity(0.6))
-                    .cornerRadius(12)
-                    .onAppear {
-                        textContent = lines.map { $0.text }.joined(separator: "\n")
-                        if !lines.isEmpty, let firstLine = lines.first {
-                            defaultFontSize = firstLine.fontSize
-                        }
-                    }
-                    .onChange(of: textContent) { oldValue, newValue in
-                        let textLines = newValue.components(separatedBy: "\n")
-                        lines = textLines.map { lineText in
-                            if let existingLine = lines.first(where: { $0.text == lineText }) {
-                                return existingLine
-                            } else {
-                                return LineData(text: lineText, fontSize: defaultFontSize)
-                            }
-                        }
-                    }
-                    .onChange(of: defaultFontSize) { oldValue, newValue in
-                        lines = lines.map { LineData(text: $0.text, fontSize: newValue) }
-                    }
-            }
-            
-            Text("Tip: Switch to Advanced mode to set different font sizes for each line")
-                .font(.system(size: 12))
-                .foregroundColor(background.textColor.opacity(0.6))
-                .italic()
-        }
-    }
-}
-
-// MARK: - Mood Selection Chip
-struct MoodSelectionChip: View {
-    let mood: Mood
-    let isSelected: Bool
-    let isDisabled: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Text(mood.icon)
-                Text(mood.rawValue)
-                    .font(.system(size: 14, weight: .medium))
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
-            .background(
-                isSelected ? Color.blue :
-                isDisabled ? Color.gray.opacity(0.3) : Color.white.opacity(0.8)
-            )
-            .foregroundColor(
-                isSelected ? .white :
-                isDisabled ? .secondary : .primary
-            )
-            .cornerRadius(8)
-        }
-        .disabled(isDisabled)
-    }
-}
-
-// MARK: - Preview Post View
-struct PreviewPostView: View {
+// MARK: - Auto-Styled Preview View
+struct AutoStyledPreviewView: View {
     let title: String
-    let linesData: [[LineData]]
+    @State var linesData: [[LineData]]
     let moods: [Mood]
     let textAlignment: TextAlignment
+    @State var templateName: String
+    let onRegenerate: () -> Void
+    let onConfirm: () -> Void
+    
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var dataController: DataController
     @State private var currentPageIndex = 0
+    @State private var isRegenerating = false
     
     var background: BackgroundType {
         dataController.userPreferences.selectedBackground
@@ -354,25 +292,35 @@ struct PreviewPostView: View {
             PersistentVideoBackgroundView(backgroundType: background)
             
             VStack {
+                // Top Bar
                 HStack {
-                    Button("Done") {
+                    Button("Cancel") {
                         dismiss()
                     }
                     .foregroundColor(background.textColor)
                     
                     Spacer()
                     
-                    Text("Preview")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(background.textColor)
+                    VStack(spacing: 4) {
+                        Text("Preview")
+                            .font(.system(size: 18, weight: .medium))
+                        Text("Style: \(templateName)")
+                            .font(.system(size: 12))
+                            .opacity(0.7)
+                    }
+                    .foregroundColor(background.textColor)
                     
                     Spacer()
                     
-                    Color.clear
-                        .frame(width: 44)
+                    Button("Post") {
+                        onConfirm()
+                        dismiss()
+                    }
+                    .foregroundColor(.blue)
                 }
                 .padding()
                 
+                // Title
                 Text(title)
                     .font(.system(size: 24, weight: .semibold, design: .serif))
                     .foregroundColor(background.textColor)
@@ -380,6 +328,7 @@ struct PreviewPostView: View {
                 
                 Spacer()
                 
+                // Content Display
                 if linesData.count > 1 {
                     TabView(selection: $currentPageIndex) {
                         ForEach(Array(linesData.enumerated()), id: \.offset) { index, pageLines in
@@ -432,6 +381,7 @@ struct PreviewPostView: View {
                 
                 Spacer()
                 
+                // Moods Display
                 HStack(spacing: 12) {
                     ForEach(moods, id: \.self) { mood in
                         Text("\(mood.icon) \(mood.rawValue)")
@@ -443,6 +393,45 @@ struct PreviewPostView: View {
                             .cornerRadius(15)
                     }
                 }
+                .padding(.bottom, 20)
+                
+                // Regenerate Button
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isRegenerating = true
+                    }
+                    
+                    // Regenerate layout
+                    let result = TemplateEngine.generateStyledLayout(
+                        title: title,
+                        content: linesData.map { pageLines in
+                            pageLines.map { $0.text }.joined(separator: "\n")
+                        }.joined(separator: "\n\n\n"),
+                        moods: moods,
+                        alignment: textAlignment,
+                        seed: nil
+                    )
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            self.linesData = result.linesData
+                            self.templateName = result.templateName
+                            isRegenerating = false
+                        }
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.clockwise")
+                            .rotationEffect(.degrees(isRegenerating ? 360 : 0))
+                        Text("Try Different Style")
+                    }
+                    .foregroundColor(background.textColor)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.2))
+                    .cornerRadius(25)
+                }
+                .disabled(isRegenerating)
                 .padding(.bottom, 40)
             }
         }
@@ -455,5 +444,36 @@ struct PreviewPostView: View {
         case .right: return .trailing
         case .vertical: return .center
         }
+    }
+}
+
+// MARK: - Mood Selection Chip (Reused)
+struct MoodSelectionChip: View {
+    let mood: Mood
+    let isSelected: Bool
+    let isDisabled: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Text(mood.icon)
+                Text(mood.rawValue)
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .background(
+                isSelected ? Color.blue :
+                isDisabled ? Color.gray.opacity(0.3) : Color.white.opacity(0.8)
+            )
+            .foregroundColor(
+                isSelected ? .white :
+                isDisabled ? .secondary : .primary
+            )
+            .cornerRadius(8)
+        }
+        .disabled(isDisabled)
     }
 }
