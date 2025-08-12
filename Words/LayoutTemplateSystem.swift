@@ -1,340 +1,273 @@
 import SwiftUI
 
-// MARK: - Layout Template System
-enum LayoutTemplate: String, CaseIterable {
-    case cascade = "Cascade"
-    case emphasis = "Emphasis"
-    case rhythm = "Rhythm"
-    case climax = "Climax"
-    case scattered = "Scattered"
-    case minimal = "Minimal"
-    case dramatic = "Dramatic"
-    case wave = "Wave"
-    case staircase = "Staircase"
-    case balanced = "Balanced"
+// MARK: - Text Box Layout Configuration
+struct TextBoxLayout {
+    let x: CGFloat // 0.0 to 1.0 (percentage of screen width)
+    let y: CGFloat // 0.0 to 1.0 (percentage of screen height)
+    let width: CGFloat // 0.0 to 1.0 (percentage of screen width)
+    let height: CGFloat // 0.0 to 1.0 (percentage of screen height)
+    let maxLinesPerPage: Int
+    let maxCharactersPerLine: Int
+    let preserveEmptyLines: Bool
     
-    var description: String {
-        switch self {
-        case .cascade: return "Gradually decreasing sizes"
-        case .emphasis: return "Bold first line"
-        case .rhythm: return "Alternating sizes"
-        case .climax: return "Build to middle"
-        case .scattered: return "Random variation"
-        case .minimal: return "Subtle differences"
-        case .dramatic: return "High contrast"
-        case .wave: return "Flowing pattern"
-        case .staircase: return "Step-like progression"
-        case .balanced: return "Harmonious sizing"
-        }
+    // Convert to actual frame based on screen size
+    func frame(in geometry: GeometryProxy) -> CGRect {
+        return CGRect(
+            x: geometry.size.width * x,
+            y: geometry.size.height * y,
+            width: geometry.size.width * width,
+            height: geometry.size.height * height
+        )
     }
 }
 
-// MARK: - Template Engine
-class TemplateEngine {
+// MARK: - Background Layout Mappings (Used by VIEWER, not creator)
+struct BackgroundLayoutConfig {
+    // Define text box layouts for each background
+    static let layouts: [BackgroundType: TextBoxLayout] = [
+        // Gradient backgrounds - centered, medium size
+        .paper: TextBoxLayout(
+            x: 0.1, y: 0.25, width: 0.8, height: 0.5,
+            maxLinesPerPage: 12, maxCharactersPerLine: 40, preserveEmptyLines: true
+        ),
+        .fog: TextBoxLayout(
+            x: 0.15, y: 0.3, width: 0.7, height: 0.4,
+            maxLinesPerPage: 10, maxCharactersPerLine: 35, preserveEmptyLines: true
+        ),
+        .sunset: TextBoxLayout(
+            x: 0.05, y: 0.6, width: 0.9, height: 0.35,
+            maxLinesPerPage: 8, maxCharactersPerLine: 45, preserveEmptyLines: true
+        ),
+        .night: TextBoxLayout(
+            x: 0.2, y: 0.2, width: 0.6, height: 0.6,
+            maxLinesPerPage: 14, maxCharactersPerLine: 30, preserveEmptyLines: true
+        ),
+        .ocean: TextBoxLayout(
+            x: 0.1, y: 0.15, width: 0.8, height: 0.4,
+            maxLinesPerPage: 10, maxCharactersPerLine: 40, preserveEmptyLines: true
+        ),
+        .forest: TextBoxLayout(
+            x: 0.15, y: 0.5, width: 0.7, height: 0.4,
+            maxLinesPerPage: 10, maxCharactersPerLine: 35, preserveEmptyLines: true
+        ),
+        .lavender: TextBoxLayout(
+            x: 0.1, y: 0.35, width: 0.8, height: 0.45,
+            maxLinesPerPage: 11, maxCharactersPerLine: 40, preserveEmptyLines: true
+        ),
+        .mint: TextBoxLayout(
+            x: 0.05, y: 0.25, width: 0.9, height: 0.5,
+            maxLinesPerPage: 12, maxCharactersPerLine: 45, preserveEmptyLines: true
+        ),
+        
+        // Video backgrounds - varied positions for visual interest
+        .rainForest: TextBoxLayout(
+            x: 0.1, y: 0.6, width: 0.8, height: 0.35,
+            maxLinesPerPage: 8, maxCharactersPerLine: 40, preserveEmptyLines: true
+        ),
+        .northernLights: TextBoxLayout(
+            x: 0.15, y: 0.1, width: 0.7, height: 0.3,
+            maxLinesPerPage: 7, maxCharactersPerLine: 35, preserveEmptyLines: true
+        ),
+        .oceanWaves: TextBoxLayout(
+            x: 0.05, y: 0.55, width: 0.9, height: 0.4,
+            maxLinesPerPage: 9, maxCharactersPerLine: 45, preserveEmptyLines: true
+        ),
+        .cloudySky: TextBoxLayout(
+            x: 0.2, y: 0.65, width: 0.6, height: 0.3,
+            maxLinesPerPage: 7, maxCharactersPerLine: 30, preserveEmptyLines: true
+        ),
+        .fireplace: TextBoxLayout(
+            x: 0.25, y: 0.15, width: 0.5, height: 0.35,
+            maxLinesPerPage: 8, maxCharactersPerLine: 25, preserveEmptyLines: true
+        ),
+        .snowfall: TextBoxLayout(
+            x: 0.1, y: 0.2, width: 0.8, height: 0.45,
+            maxLinesPerPage: 11, maxCharactersPerLine: 40, preserveEmptyLines: true
+        ),
+        .cityNight: TextBoxLayout(
+            x: 0.05, y: 0.7, width: 0.6, height: 0.25,
+            maxLinesPerPage: 6, maxCharactersPerLine: 30, preserveEmptyLines: true
+        ),
+        .galaxySpace: TextBoxLayout(
+            x: 0.3, y: 0.35, width: 0.4, height: 0.3,
+            maxLinesPerPage: 7, maxCharactersPerLine: 20, preserveEmptyLines: true
+        )
+    ]
     
-    // MARK: - Main Generation Function
-    static func generateStyledLayout(
-        title: String,
-        content: String,
-        moods: [Mood],
-        alignment: TextAlignment,
-        seed: Int? = nil
-    ) -> (linesData: [[LineData]], layoutSeed: Int, templateName: String) {
+    // Get layout for a background, with fallback
+    static func getLayout(for background: BackgroundType) -> TextBoxLayout {
+        return layouts[background] ?? TextBoxLayout(
+            x: 0.1, y: 0.25, width: 0.8, height: 0.5,
+            maxLinesPerPage: 12, maxCharactersPerLine: 40, preserveEmptyLines: true
+        )
+    }
+}
+
+// MARK: - Dynamic Layout Processor (For Viewing Posts)
+class DynamicLayoutProcessor {
+    
+    // Process post content for viewing based on viewer's background
+    static func processPostForViewing(
+        post: WordPost,
+        viewerBackground: BackgroundType,
+        geometry: GeometryProxy
+    ) -> (pages: [[LineData]], layout: TextBoxLayout) {
         
-        // Generate or use provided seed
-        let layoutSeed = seed ?? Int.random(in: 0...99999)
-        var generator = SeededRandomNumberGenerator(seed: layoutSeed)
+        let layout = BackgroundLayoutConfig.getLayout(for: viewerBackground)
         
-        // Split content into pages and lines
-        let pages = content.components(separatedBy: "\n\n\n") // Three returns = page break
-        let processedPages = pages.map { page in
-            page.components(separatedBy: "\n").filter { !$0.isEmpty }
-        }
-        
-        // Select template based on seed and mood
-        let template = selectTemplate(moods: moods, using: &generator)
-        
-        // Generate styled lines for each page
-        let styledPages = processedPages.map { pageLines in
-            applyTemplate(
-                lines: pageLines,
-                template: template,
-                moods: moods,
-                using: &generator
+        // If post has structured content, reflow it for current layout
+        if let originalPages = post.linesData {
+            let allContent = originalPages.flatMap { page in
+                page.map { $0.text }
+            }.joined(separator: "\n")
+            
+            let reflowedPages = processContentIntoPages(
+                content: allContent,
+                layout: layout
             )
+            
+            // Apply original font sizing pattern if available
+            let styledPages = reflowedPages.map { pageLines in
+                applyOriginalStyling(
+                    lines: pageLines,
+                    originalPages: originalPages
+                )
+            }
+            
+            return (styledPages, layout)
         }
         
-        return (styledPages, layoutSeed, template.rawValue)
+        // Fallback for old posts without structured content
+        let content = post.content.joined(separator: "\n")
+        let pages = processContentIntoPages(content: content, layout: layout)
+        let styledPages = pages.map { pageLines in
+            pageLines.map { LineData(text: $0, fontSize: post.fontSize) }
+        }
+        
+        return (styledPages, layout)
     }
     
-    // MARK: - Template Selection
-    private static func selectTemplate(
-        moods: [Mood],
-        using generator: inout SeededRandomNumberGenerator
-    ) -> LayoutTemplate {
+    // Process content into pages based on layout constraints
+    private static func processContentIntoPages(
+        content: String,
+        layout: TextBoxLayout
+    ) -> [[String]] {
         
-        // Mood-based template preferences
-        var preferredTemplates: [LayoutTemplate] = []
+        var pages: [[String]] = []
+        var currentPage: [String] = []
         
-        for mood in moods {
-            switch mood {
-            case .peaceful:
-                preferredTemplates.append(contentsOf: [.minimal, .wave, .balanced])
-            case .motivational:
-                preferredTemplates.append(contentsOf: [.emphasis, .dramatic, .climax])
-            case .melancholy:
-                preferredTemplates.append(contentsOf: [.cascade, .wave, .scattered])
-            case .hopecore:
-                preferredTemplates.append(contentsOf: [.climax, .staircase, .rhythm])
-            case .existential:
-                preferredTemplates.append(contentsOf: [.scattered, .minimal, .wave])
-            case .playful:
-                preferredTemplates.append(contentsOf: [.rhythm, .scattered, .staircase])
-            case .healing:
-                preferredTemplates.append(contentsOf: [.balanced, .minimal, .wave])
-            case .grounding:
-                preferredTemplates.append(contentsOf: [.balanced, .minimal, .emphasis])
-            case .surreal:
-                preferredTemplates.append(contentsOf: [.scattered, .dramatic, .wave])
-            case .unfiltered:
-                preferredTemplates.append(contentsOf: [.dramatic, .emphasis, .scattered])
+        // Split by line breaks, KEEPING empty lines
+        let allLines = content.components(separatedBy: "\n")
+        
+        for line in allLines {
+            // Check if adding this line would exceed page limits
+            let shouldStartNewPage = currentPage.count >= layout.maxLinesPerPage
+            
+            if shouldStartNewPage && !currentPage.isEmpty {
+                pages.append(currentPage)
+                currentPage = []
+            }
+            
+            // Process line based on character limit
+            if line.isEmpty && layout.preserveEmptyLines {
+                // Keep empty lines for spacing
+                currentPage.append("")
+            } else if line.count <= layout.maxCharactersPerLine {
+                // Line fits within limit
+                currentPage.append(line)
+            } else {
+                // Line needs to be wrapped
+                let wrappedLines = wrapLine(line, maxChars: layout.maxCharactersPerLine)
+                for wrappedLine in wrappedLines {
+                    if currentPage.count >= layout.maxLinesPerPage {
+                        pages.append(currentPage)
+                        currentPage = []
+                    }
+                    currentPage.append(wrappedLine)
+                }
             }
         }
         
-        // If no preferences, use all templates
-        if preferredTemplates.isEmpty {
-            preferredTemplates = Array(LayoutTemplate.allCases)
+        // Add remaining lines as last page
+        if !currentPage.isEmpty {
+            pages.append(currentPage)
         }
         
-        // Random selection from preferred templates
-        let index = Int.random(in: 0..<preferredTemplates.count, using: &generator)
-        return preferredTemplates[index]
+        // If no pages created, create one with empty content
+        if pages.isEmpty {
+            pages.append([""])
+        }
+        
+        return pages
     }
     
-    // MARK: - Apply Template to Lines
-    private static func applyTemplate(
+    // Wrap line at word boundaries
+    private static func wrapLine(_ line: String, maxChars: Int) -> [String] {
+        guard !line.isEmpty && maxChars > 0 else { return [line] }
+        
+        var result: [String] = []
+        var currentLine = ""
+        let words = line.split(separator: " ", omittingEmptySubsequences: false)
+        
+        for word in words {
+            let wordStr = String(word)
+            
+            if currentLine.isEmpty {
+                currentLine = wordStr
+            } else if currentLine.count + 1 + wordStr.count <= maxChars {
+                currentLine += " " + wordStr
+            } else {
+                result.append(currentLine)
+                currentLine = wordStr
+            }
+            
+            // Handle very long words
+            while currentLine.count > maxChars {
+                let index = currentLine.index(currentLine.startIndex, offsetBy: maxChars)
+                result.append(String(currentLine[..<index]))
+                currentLine = String(currentLine[index...])
+            }
+        }
+        
+        if !currentLine.isEmpty {
+            result.append(currentLine)
+        }
+        
+        return result.isEmpty ? [""] : result
+    }
+    
+    // Apply original styling pattern to reflowed content
+    private static func applyOriginalStyling(
         lines: [String],
-        template: LayoutTemplate,
-        moods: [Mood],
-        using generator: inout SeededRandomNumberGenerator
+        originalPages: [[LineData]]
     ) -> [LineData] {
         
-        guard !lines.isEmpty else { return [] }
+        // Get all original font sizes (excluding empty lines)
+        let originalSizes = originalPages.flatMap { page in
+            page.filter { !$0.text.isEmpty }.map { $0.fontSize }
+        }
         
-        // Get font size range based on mood
-        let (minSize, maxSize) = getFontSizeRange(for: moods)
+        guard !originalSizes.isEmpty else {
+            return lines.map { LineData(text: $0, fontSize: 20) }
+        }
+        
+        // Calculate size pattern
+        let minSize = originalSizes.min() ?? 16
+        let maxSize = originalSizes.max() ?? 28
         
         var styledLines: [LineData] = []
         
         for (index, line) in lines.enumerated() {
-            let fontSize = calculateFontSize(
-                text: line,
-                lineIndex: index,
-                totalLines: lines.count,
-                template: template,
-                minSize: minSize,
-                maxSize: maxSize,
-                using: &generator
-            )
-            
-            styledLines.append(LineData(text: line, fontSize: fontSize))
+            if line.isEmpty {
+                styledLines.append(LineData(text: line, fontSize: minSize))
+            } else {
+                // Apply a pattern based on position
+                let progress = lines.count > 1 ? CGFloat(index) / CGFloat(lines.count - 1) : 0.5
+                let fontSize = maxSize - (progress * (maxSize - minSize) * 0.6)
+                styledLines.append(LineData(text: line, fontSize: fontSize))
+            }
         }
         
         return styledLines
-    }
-    
-    // MARK: - Calculate Font Size
-    private static func calculateFontSize(
-        text: String,
-        lineIndex: Int,
-        totalLines: Int,
-        template: LayoutTemplate,
-        minSize: CGFloat,
-        maxSize: CGFloat,
-        using generator: inout SeededRandomNumberGenerator
-    ) -> CGFloat {
-        
-        let progress = totalLines > 1 ? CGFloat(lineIndex) / CGFloat(totalLines - 1) : 0.5
-        let textLength = text.count
-        
-        // Length-based adjustment (shorter lines can be larger)
-        let lengthMultiplier: CGFloat
-        if textLength < 20 {
-            lengthMultiplier = 1.2
-        } else if textLength < 40 {
-            lengthMultiplier = 1.0
-        } else if textLength < 60 {
-            lengthMultiplier = 0.9
-        } else {
-            lengthMultiplier = 0.8
-        }
-        
-        // Template-specific sizing
-        let templateSize: CGFloat
-        
-        switch template {
-        case .cascade:
-            // Gradually decrease
-            templateSize = maxSize - (progress * (maxSize - minSize))
-            
-        case .emphasis:
-            // First line large, rest medium
-            if lineIndex == 0 {
-                templateSize = maxSize
-            } else {
-                templateSize = minSize + (maxSize - minSize) * 0.4
-            }
-            
-        case .rhythm:
-            // Alternating pattern
-            if lineIndex % 2 == 0 {
-                templateSize = maxSize * 0.9
-            } else {
-                templateSize = minSize + (maxSize - minSize) * 0.3
-            }
-            
-        case .climax:
-            // Build to middle
-            let middle = CGFloat(totalLines) / 2
-            let distanceFromMiddle = abs(CGFloat(lineIndex) - middle) / middle
-            templateSize = maxSize - (distanceFromMiddle * (maxSize - minSize) * 0.7)
-            
-        case .scattered:
-            // Random but balanced
-            let randomFactor = CGFloat.random(in: 0.3...1.0, using: &generator)
-            templateSize = minSize + (maxSize - minSize) * randomFactor
-            
-        case .minimal:
-            // Mostly uniform with subtle variations
-            let variation = CGFloat.random(in: -0.1...0.1, using: &generator)
-            let baseSize = minSize + (maxSize - minSize) * 0.5
-            templateSize = baseSize + (baseSize * variation)
-            
-        case .dramatic:
-            // High contrast
-            if lineIndex % 3 == 0 {
-                templateSize = maxSize
-            } else {
-                templateSize = minSize
-            }
-            
-        case .wave:
-            // Sine wave pattern
-            let wavePosition = sin(progress * .pi * 2)
-            templateSize = minSize + (maxSize - minSize) * (0.5 + wavePosition * 0.5)
-            
-        case .staircase:
-            // Step progression
-            let steps = min(5, totalLines)
-            let step = lineIndex * steps / totalLines
-            templateSize = minSize + (CGFloat(step) / CGFloat(steps - 1)) * (maxSize - minSize)
-            
-        case .balanced:
-            // Harmonious golden ratio
-            if lineIndex == 0 {
-                templateSize = maxSize * 0.8
-            } else if lineIndex == totalLines - 1 {
-                templateSize = maxSize * 0.8
-            } else {
-                templateSize = minSize + (maxSize - minSize) * 0.5
-            }
-        }
-        
-        // Apply length multiplier and clamp to range
-        let finalSize = min(maxSize, max(minSize, templateSize * lengthMultiplier))
-        
-        // Round to nearest even number for cleaner rendering
-        return round(finalSize / 2) * 2
-    }
-    
-    // MARK: - Font Size Range
-    private static func getFontSizeRange(for moods: [Mood]) -> (min: CGFloat, max: CGFloat) {
-        var minSize: CGFloat = 16
-        var maxSize: CGFloat = 32
-        
-        // Adjust range based on moods
-        for mood in moods {
-            switch mood {
-            case .peaceful:
-                minSize = max(minSize, 16)
-                maxSize = min(maxSize, 24)
-            case .motivational:
-                minSize = max(minSize, 18)
-                maxSize = max(maxSize, 36)
-                /*
-            case .dramatic:
-                minSize = max(minSize, 14)
-                maxSize = max(maxSize, 36)
-            case .minimal:
-                minSize = max(minSize, 18)
-                maxSize = min(maxSize, 22)
-                 */
-            case .playful:
-                minSize = max(minSize, 16)
-                maxSize = max(maxSize, 32)
-            case .melancholy:
-                minSize = max(minSize, 16)
-                maxSize = min(maxSize, 28)
-            case .existential:
-                minSize = max(minSize, 14)
-                maxSize = min(maxSize, 26)
-            case .healing:
-                minSize = max(minSize, 18)
-                maxSize = min(maxSize, 26)
-            case .grounding:
-                minSize = max(minSize, 20)
-                maxSize = min(maxSize, 28)
-            case .hopecore:
-                minSize = max(minSize, 18)
-                maxSize = max(maxSize, 32)
-            case .surreal:
-                minSize = max(minSize, 14)
-                maxSize = max(maxSize, 34)
-            case .unfiltered:
-                minSize = max(minSize, 16)
-                maxSize = max(maxSize, 32)
-            }
-        }
-        
-        // Ensure valid range
-        if minSize > maxSize {
-            let avg = (minSize + maxSize) / 2
-            minSize = avg - 4
-            maxSize = avg + 4
-        }
-        
-        return (minSize, maxSize)
-    }
-}
-
-// MARK: - Seeded Random Number Generator
-struct SeededRandomNumberGenerator: RandomNumberGenerator {
-    private var seed: UInt64
-    
-    init(seed: Int) {
-        self.seed = UInt64(abs(seed))
-    }
-    
-    mutating func next() -> UInt64 {
-        seed = (seed &* 1664525) &+ 1013904223
-        return seed
-    }
-}
-
-// MARK: - CGFloat Random Extension
-extension CGFloat {
-    static func random(in range: ClosedRange<CGFloat>, using generator: inout SeededRandomNumberGenerator) -> CGFloat {
-        let randomValue = CGFloat(generator.next()) / CGFloat(UInt64.max)
-        return range.lowerBound + (randomValue * (range.upperBound - range.lowerBound))
-    }
-}
-
-// MARK: - Int Random Extension
-extension Int {
-    static func random(in range: Range<Int>, using generator: inout SeededRandomNumberGenerator) -> Int {
-        let randomValue = generator.next()
-        let rangeSize = UInt64(range.upperBound - range.lowerBound)
-        let boundedValue = randomValue % rangeSize
-        return range.lowerBound + Int(boundedValue)
     }
 }

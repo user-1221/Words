@@ -1,18 +1,14 @@
 import SwiftUI
 
-// MARK: - Create Post View (Simplified with Auto-Styling)
+// MARK: - Create Post View (Simple - No Layout)
 struct CreatePostView: View {
     @EnvironmentObject var dataController: DataController
     @State private var title = ""
     @State private var content = ""
     @State private var selectedMoods: Set<Mood> = []
     @State private var selectedAlignment: TextAlignment = .center
+    @State private var fontSize: CGFloat = 20
     @State private var showingPreview = false
-    
-    // Generated layout data
-    @State private var generatedLinesData: [[LineData]] = []
-    @State private var currentLayoutSeed: Int = 0
-    @State private var currentTemplateName: String = ""
     
     var background: BackgroundType {
         dataController.userPreferences.selectedBackground
@@ -39,7 +35,7 @@ struct CreatePostView: View {
                                     .font(.system(size: 28, weight: .semibold))
                                     .foregroundColor(background.textColor)
                                 
-                                Text("Just write. We'll make it beautiful.")
+                                Text("Write freely. Each reader will see it their way.")
                                     .font(.system(size: 16))
                                     .foregroundColor(background.textColor.opacity(0.7))
                             }
@@ -87,19 +83,29 @@ struct CreatePostView: View {
                                         .font(.system(size: 14, weight: .medium))
                                         .foregroundColor(background.textColor.opacity(0.8))
                                     
-                                    Text("• Press return for a new line")
+                                    Text("• Use line breaks for visual rhythm")
                                         .font(.system(size: 12))
                                         .foregroundColor(background.textColor.opacity(0.6))
                                     
-                                    Text("• Press return 3 times for a new page")
+                                    Text("• Empty lines create breathing space")
                                         .font(.system(size: 12))
                                         .foregroundColor(background.textColor.opacity(0.6))
                                     
-                                    Text("• Keep lines short for more impact")
+                                    Text("• Each viewer sees it differently based on their background")
                                         .font(.system(size: 12))
                                         .foregroundColor(background.textColor.opacity(0.6))
                                 }
                                 .padding(.horizontal, 8)
+                            }
+                            
+                            // Font Size Slider
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Base Font Size: \(Int(fontSize))")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(background.textColor)
+                                
+                                Slider(value: $fontSize, in: 14...32, step: 1)
+                                    .accentColor(background.textColor)
                             }
                             
                             // Text Alignment Selection
@@ -146,10 +152,6 @@ struct CreatePostView: View {
                                         .foregroundColor(background.textColor.opacity(0.7))
                                 }
                                 
-                                Text("Moods influence the visual style")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(background.textColor.opacity(0.6))
-                                
                                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
                                     ForEach(Mood.allCases, id: \.self) { mood in
                                         MoodSelectionChip(
@@ -173,7 +175,6 @@ struct CreatePostView: View {
                     // Bottom Actions
                     VStack(spacing: 12) {
                         Button("Preview") {
-                            generateLayout()
                             showingPreview = true
                         }
                         .frame(maxWidth: .infinity)
@@ -184,14 +185,7 @@ struct CreatePostView: View {
                         .disabled(!canPost)
                         
                         Button("Share Words") {
-                            if canPost && !generatedLinesData.isEmpty {
-                                createPost()
-                            } else {
-                                generateLayout()
-                                if !generatedLinesData.isEmpty {
-                                    createPost()
-                                }
-                            }
+                            createPost()
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -207,15 +201,13 @@ struct CreatePostView: View {
             .navigationBarHidden(true)
         }
         .fullScreenCover(isPresented: $showingPreview) {
-            AutoStyledPreviewView(
+            SimplePreviewView(
                 title: title,
-                linesData: generatedLinesData,
+                content: content,
                 moods: Array(selectedMoods),
+                fontSize: fontSize,
                 textAlignment: selectedAlignment,
-                templateName: currentTemplateName,
-                onRegenerate: {
-                    generateLayout()
-                },
+                background: background,
                 onConfirm: {
                     showingPreview = false
                     createPost()
@@ -224,37 +216,17 @@ struct CreatePostView: View {
         }
     }
     
-    // MARK: - Generate Layout
-    private func generateLayout() {
-        let result = TemplateEngine.generateStyledLayout(
-            title: title,
-            content: content,
-            moods: Array(selectedMoods),
-            alignment: selectedAlignment,
-            seed: nil // Will generate random seed
-        )
-        
-        generatedLinesData = result.linesData
-        currentLayoutSeed = result.layoutSeed
-        currentTemplateName = result.templateName
-    }
-    
-    // MARK: - Create Post
+    // MARK: - Create Post (Simple)
     private func createPost() {
         guard canPost else { return }
         
-        // Generate layout if not already done
-        if generatedLinesData.isEmpty {
-            generateLayout()
-        }
-        
+        // Just save the raw content - viewers will format it based on their background
         dataController.createPost(
             title: title,
-            linesData: generatedLinesData,
+            content: [content], // Save as single page
             moods: Array(selectedMoods),
-            textAlignment: selectedAlignment,
-            layoutSeed: currentLayoutSeed,
-            templateName: currentTemplateName
+            fontSize: fontSize,
+            textAlignment: selectedAlignment
         )
         
         // Reset form
@@ -262,177 +234,97 @@ struct CreatePostView: View {
         content = ""
         selectedMoods = []
         selectedAlignment = .center
-        generatedLinesData = []
-        currentLayoutSeed = 0
-        currentTemplateName = ""
+        fontSize = 20
     }
 }
 
-// MARK: - Auto-Styled Preview View
-struct AutoStyledPreviewView: View {
+// MARK: - Simple Preview View
+struct SimplePreviewView: View {
     let title: String
-    @State var linesData: [[LineData]]
+    let content: String
     let moods: [Mood]
+    let fontSize: CGFloat
     let textAlignment: TextAlignment
-    @State var templateName: String
-    let onRegenerate: () -> Void
+    let background: BackgroundType
     let onConfirm: () -> Void
     
     @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var dataController: DataController
     @State private var currentPageIndex = 0
-    @State private var isRegenerating = false
-    
-    var background: BackgroundType {
-        dataController.userPreferences.selectedBackground
-    }
     
     var body: some View {
-        ZStack {
-            PersistentVideoBackgroundView(backgroundType: background)
-            
-            VStack {
-                // Top Bar
-                HStack {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .foregroundColor(background.textColor)
-                    
-                    Spacer()
-                    
-                    VStack(spacing: 4) {
+        GeometryReader { geometry in
+            ZStack {
+                PersistentVideoBackgroundView(backgroundType: background)
+                
+                VStack {
+                    // Top Bar
+                    HStack {
+                        Button("Cancel") {
+                            dismiss()
+                        }
+                        .foregroundColor(background.textColor)
+                        
+                        Spacer()
+                        
                         Text("Preview")
                             .font(.system(size: 18, weight: .medium))
-                        Text("Style: \(templateName)")
-                            .font(.system(size: 12))
-                            .opacity(0.7)
-                    }
-                    .foregroundColor(background.textColor)
-                    
-                    Spacer()
-                    
-                    Button("Post") {
-                        onConfirm()
-                        dismiss()
-                    }
-                    .foregroundColor(.blue)
-                }
-                .padding()
-                
-                // Title
-                Text(title)
-                    .font(.system(size: 24, weight: .semibold, design: .serif))
-                    .foregroundColor(background.textColor)
-                    .padding(.horizontal)
-                
-                Spacer()
-                
-                // Content Display
-                if linesData.count > 1 {
-                    TabView(selection: $currentPageIndex) {
-                        ForEach(Array(linesData.enumerated()), id: \.offset) { index, pageLines in
-                            ScrollView(textAlignment.isVertical ? .horizontal : .vertical) {
-                                if textAlignment.isVertical {
-                                    VerticalLinesView(
-                                        lines: pageLines,
-                                        textColor: background.textColor,
-                                        maxHeight: UIScreen.main.bounds.height * 0.5
-                                    )
-                                    .frame(width: UIScreen.main.bounds.width)
-                                } else {
-                                    VStack(alignment: textAlignmentToHStack(textAlignment), spacing: 8) {
-                                        ForEach(Array(pageLines.enumerated()), id: \.offset) { lineIndex, lineData in
-                                            Text(lineData.text)
-                                                .font(.system(size: lineData.fontSize, weight: .light, design: .serif))
-                                                .foregroundColor(background.textColor)
-                                                .multilineTextAlignment(textAlignment.swiftUIAlignment)
-                                        }
-                                    }
-                                    .padding(40)
-                                }
-                            }
-                            .tag(index)
-                        }
-                    }
-                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-                } else if let firstPage = linesData.first {
-                    ScrollView(textAlignment.isVertical ? .horizontal : .vertical) {
-                        if textAlignment.isVertical {
-                            VerticalLinesView(
-                                lines: firstPage,
-                                textColor: background.textColor,
-                                maxHeight: UIScreen.main.bounds.height * 0.5
-                            )
-                            .frame(width: UIScreen.main.bounds.width)
-                        } else {
-                            VStack(alignment: textAlignmentToHStack(textAlignment), spacing: 8) {
-                                ForEach(Array(firstPage.enumerated()), id: \.offset) { lineIndex, lineData in
-                                    Text(lineData.text)
-                                        .font(.system(size: lineData.fontSize, weight: .light, design: .serif))
-                                        .foregroundColor(background.textColor)
-                                        .multilineTextAlignment(textAlignment.swiftUIAlignment)
-                                }
-                            }
-                            .padding(40)
-                        }
-                    }
-                }
-                
-                Spacer()
-                
-                // Moods Display
-                HStack(spacing: 12) {
-                    ForEach(moods, id: \.self) { mood in
-                        Text("\(mood.icon) \(mood.rawValue)")
-                            .font(.system(size: 14))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.black.opacity(0.2))
                             .foregroundColor(background.textColor)
-                            .cornerRadius(15)
+                        
+                        Spacer()
+                        
+                        Button("Post") {
+                            onConfirm()
+                            dismiss()
+                        }
+                        .foregroundColor(.blue)
                     }
-                }
-                .padding(.bottom, 20)
-                
-                // Regenerate Button
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        isRegenerating = true
+                    .padding()
+                    
+                    // Note about dynamic layout
+                    Text("Note: Each viewer will see this differently based on their background")
+                        .font(.system(size: 12))
+                        .foregroundColor(background.textColor.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    // Simple preview of content
+                    let layout = BackgroundLayoutConfig.getLayout(for: background)
+                    let frame = layout.frame(in: geometry)
+                    
+                    ScrollView {
+                        VStack(alignment: textAlignmentToHStack(textAlignment), spacing: 8) {
+                            Text(title)
+                                .font(.system(size: fontSize + 4, weight: .semibold, design: .serif))
+                                .foregroundColor(background.textColor)
+                                .multilineTextAlignment(textAlignment.swiftUIAlignment)
+                                .padding(.bottom, 8)
+                            
+                            Text(content)
+                                .font(.system(size: fontSize, weight: .light, design: .serif))
+                                .foregroundColor(background.textColor)
+                                .multilineTextAlignment(textAlignment.swiftUIAlignment)
+                        }
+                        .padding()
+                        .frame(width: frame.width, height: frame.height)
                     }
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(12)
+                    .position(x: frame.midX, y: frame.midY)
                     
-                    // Regenerate layout
-                    let result = TemplateEngine.generateStyledLayout(
-                        title: title,
-                        content: linesData.map { pageLines in
-                            pageLines.map { $0.text }.joined(separator: "\n")
-                        }.joined(separator: "\n\n\n"),
-                        moods: moods,
-                        alignment: textAlignment,
-                        seed: nil
-                    )
-                    
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            self.linesData = result.linesData
-                            self.templateName = result.templateName
-                            isRegenerating = false
+                    // Moods Display
+                    HStack(spacing: 12) {
+                        ForEach(moods, id: \.self) { mood in
+                            Text("\(mood.icon) \(mood.rawValue)")
+                                .font(.system(size: 14))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.black.opacity(0.2))
+                                .foregroundColor(background.textColor)
+                                .cornerRadius(15)
                         }
                     }
-                }) {
-                    HStack {
-                        Image(systemName: "arrow.clockwise")
-                            .rotationEffect(.degrees(isRegenerating ? 360 : 0))
-                        Text("Try Different Style")
-                    }
-                    .foregroundColor(background.textColor)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.2))
-                    .cornerRadius(25)
+                    .padding(.bottom, 40)
                 }
-                .disabled(isRegenerating)
-                .padding(.bottom, 40)
             }
         }
     }
